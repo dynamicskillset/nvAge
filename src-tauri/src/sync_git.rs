@@ -65,14 +65,24 @@ impl GitSyncProvider {
             if let Some(parent) = self.repo_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            self.git(&[
-                "clone",
-                "--branch",
-                &self.branch,
-                "--single-branch",
-                &self.remote_url,
-                self.repo_path.to_str().unwrap(),
-            ])?;
+            // Clone must run from the parent directory, not the repo path
+            let git_path = find_git()?;
+            let output = Command::new(&git_path)
+                .args([
+                    "clone",
+                    "--branch",
+                    &self.branch,
+                    "--single-branch",
+                    &self.remote_url,
+                    self.repo_path.to_str().unwrap(),
+                ])
+                .current_dir(self.repo_path.parent().unwrap_or(&self.repo_path))
+                .output()?;
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                anyhow::bail!("git clone failed: {}", stderr);
+            }
             Ok(())
         }
     }
