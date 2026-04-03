@@ -8,9 +8,9 @@ A local-first, cross-platform desktop notes app in the tradition of Notational V
 
 Full product spec: `nvage-prd.md`
 
-## Current Status: All Three Milestones Complete
+## Current Status: All Three Milestones Complete — Sync Tested End-to-End
 
-Milestones 1, 2, and 3 are all complete. The app supports local note-taking with instant search, Nord theming, animations, encrypted sync via Git, setup validation, conflict detection, and graceful error handling.
+Milestones 1, 2, and 3 are all complete. Encrypted sync has been tested end-to-end: notes are encrypted with `age`, committed to a GitHub repo with generic messages, and only encrypted `.md.age` files exist in the remote. No plaintext leaked.
 
 ---
 
@@ -173,9 +173,9 @@ Milestones 1, 2, and 3 are all complete. The app supports local note-taking with
 
 - **Git** — `https://github.com/dynamicskillset/nvAge`
 - **Kin** — semantic VCS at `.kin/`
-- Latest git commit: `522c619` — ":safety_vest: Milestone 3 — setup validation, conflict warning banner, graceful error handling"
-- Latest kin commit: `a4c41961` — same
-- Total entities tracked: 152
+- Latest git commit: `0d329bb` — ":bug: fix git clone running from non-existent repo directory"
+- Latest kin commit: `073f1203` — same
+- Total entities tracked: 163
 
 ---
 
