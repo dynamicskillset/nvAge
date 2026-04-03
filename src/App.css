@@ -1045,6 +1045,10 @@
   border-radius: 4px;
 }
 
+.sync-primary-btn.key-copied {
+  background: #a3be8c;
+}
+
 .sync-import {
   display: flex;
   flex-direction: column;

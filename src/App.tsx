@@ -227,6 +227,8 @@ function App() {
   const [showSyncSetup, setShowSyncSetup] = useState(false);
   const [syncStep, setSyncStep] = useState<"welcome" | "key" | "remote" | "done">("welcome");
   const [syncKey, setSyncKey] = useState("");
+  const [generatedKey, setGeneratedKey] = useState("");
+  const [keyCopied, setKeyCopied] = useState(false);
   const [syncPublicKey, setSyncPublicKey] = useState("");
   const [syncRemoteUrl, setSyncRemoteUrl] = useState("");
   const [syncBranch, setSyncBranch] = useState("main");
@@ -560,10 +562,11 @@ function App() {
   const handleGenerateKey = useCallback(async () => {
     setSyncLoading(true);
     setSyncError(null);
+    setKeyCopied(false);
     try {
-      const res = await invoke<{ public_key: string }>("generate_sync_key");
+      const res = await invoke<{ public_key: string; secret_key: string }>("generate_sync_key");
       setSyncPublicKey(res.public_key);
-      setSyncStep("remote");
+      setGeneratedKey(res.secret_key);
     } catch (e) {
       setSyncError(friendlyError(e, "Failed to generate key"));
     } finally {
@@ -571,12 +574,21 @@ function App() {
     }
   }, []);
 
+  const handleCopyKey = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(generatedKey);
+      setKeyCopied(true);
+    } catch {
+      // Fallback: select the text so user can copy manually
+    }
+  }, [generatedKey]);
+
   const handleImportKey = useCallback(async () => {
     if (!syncKey.trim()) return;
     setSyncLoading(true);
     setSyncError(null);
     try {
-      const res = await invoke<{ public_key: string }>("import_sync_key", { keyStr: syncKey.trim() });
+      const res = await invoke<{ public_key: string; secret_key: string }>("import_sync_key", { keyStr: syncKey.trim() });
       setSyncPublicKey(res.public_key);
       setSyncStep("remote");
     } catch (e) {
@@ -1011,31 +1023,60 @@ function App() {
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                     <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                   </svg>
-                  <span>If you lose this key, your synced copies on other devices cannot be read. Keep a backup somewhere safe.</span>
+                  <span>If you lose this key, your synced copies on other devices cannot be read. Copy it somewhere safe before continuing.</span>
                 </div>
 
-                <button className="sync-primary-btn" onClick={handleGenerateKey} disabled={syncLoading}>
-                  {syncLoading ? "Generating..." : "Generate a key for me"}
-                </button>
-
-                <div className="sync-divider">
-                  <span>or</span>
-                </div>
-
-                <div className="sync-import">
-                  <label htmlFor="sync-key-input" className="sync-label-text">Already have a key from another device?</label>
-                  <textarea
-                    id="sync-key-input"
-                    className="sync-textarea"
-                    value={syncKey}
-                    onChange={(e) => setSyncKey(e.target.value)}
-                    placeholder="AGE-SECRET-KEY-1..."
-                    rows={3}
-                  />
-                  <button className="sync-secondary-btn" onClick={handleImportKey} disabled={syncLoading || !syncKey.trim()}>
-                    {syncLoading ? "Importing..." : "Use this key"}
+                {!generatedKey && (
+                  <button className="sync-primary-btn" onClick={handleGenerateKey} disabled={syncLoading}>
+                    {syncLoading ? "Generating..." : "Generate a key for me"}
                   </button>
-                </div>
+                )}
+
+                {generatedKey && (
+                  <div className="sync-key-display">
+                    <span className="sync-key-label">Your secret key</span>
+                    <code className="sync-key-code">{generatedKey}</code>
+                    <button
+                      className={`sync-primary-btn ${keyCopied ? "key-copied" : ""}`}
+                      onClick={handleCopyKey}
+                      style={{ marginTop: "12px" }}
+                    >
+                      {keyCopied ? "Copied" : "Copy key"}
+                    </button>
+                    {keyCopied && (
+                      <button
+                        className="sync-secondary-btn"
+                        onClick={() => setSyncStep("remote")}
+                        style={{ marginTop: "8px" }}
+                      >
+                        Continue
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {!generatedKey && (
+                  <>
+                    <div className="sync-divider">
+                      <span>or</span>
+                    </div>
+
+                    <div className="sync-import">
+                      <label htmlFor="sync-key-input" className="sync-label-text">Already have a key from another device?</label>
+                      <textarea
+                        id="sync-key-input"
+                        className="sync-textarea"
+                        value={syncKey}
+                        onChange={(e) => setSyncKey(e.target.value)}
+                        placeholder="AGE-SECRET-KEY-1..."
+                        rows={3}
+                      />
+                      <button className="sync-secondary-btn" onClick={handleImportKey} disabled={syncLoading || !syncKey.trim()}>
+                        {syncLoading ? "Importing..." : "Use this key"}
+                      </button>
+                    </div>
+                  </>
+                )}
 
                 {syncError && <div className="sync-error-text">{syncError}</div>}
               </div>

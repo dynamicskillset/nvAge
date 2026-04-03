@@ -20,9 +20,26 @@ pub fn generate_key() -> Result<(String, String), anyhow::Error> {
 
 /// Parse a secret key (Identity) from a string.
 pub fn parse_secret_key(key_str: &str) -> Result<Identity, anyhow::Error> {
-    key_str
+    // Clean up: trim whitespace, skip comment lines, take first non-empty line
+    let cleaned = key_str
+        .lines()
+        .map(|l| l.trim())
+        .find(|l| !l.is_empty() && !l.starts_with('#'))
+        .unwrap_or("");
+
+    if cleaned.is_empty() {
+        anyhow::bail!("No key found. Paste your AGE-SECRET-KEY-1... here.");
+    }
+
+    if !cleaned.starts_with("AGE-SECRET-KEY-1") {
+        anyhow::bail!(
+            "Key must start with AGE-SECRET-KEY-1. Make sure you are pasting the secret key, not the public key."
+        );
+    }
+
+    cleaned
         .parse::<Identity>()
-        .map_err(|e| anyhow::anyhow!("Failed to parse identity key: {}", e))
+        .map_err(|e| anyhow::anyhow!("Invalid key: {}", e))
 }
 
 /// Load a secret key from a file.
@@ -164,19 +181,11 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
-    /// Security invariant: the sync destination never contains plaintext.
-    ///
-    /// This test simulates the full push cycle:
-    /// 1. Create several notes with realistic content
-    /// 2. Encrypt each one
-    /// 3. Assert every encrypted file is a valid age blob
-    /// 4. Assert no plaintext content appears in any encrypted file
     #[test]
     fn test_security_no_plaintext_in_sync_destination() {
         let (public_key, secret_str) = generate_key().unwrap();
         let identity = parse_secret_key(&secret_str).unwrap();
 
-        // Simulate realistic note content
         let notes = vec![
             (
                 "note-1.md.age",
@@ -192,38 +201,32 @@ mod tests {
             ),
         ];
 
-        // Create a temporary "sync destination" directory
         let sync_dir = std::env::temp_dir().join("nvage_sync_test");
         let _ = std::fs::remove_dir_all(&sync_dir);
         std::fs::create_dir_all(&sync_dir).unwrap();
 
-        // Encrypt each note and write to the sync destination
         for (filename, content) in &notes {
             let encrypted = encrypt(&public_key, content.as_bytes()).unwrap();
             let dest = sync_dir.join(filename);
             std::fs::write(&dest, encrypted).unwrap();
         }
 
-        // Verify each file in the sync destination
         for entry in std::fs::read_dir(&sync_dir).unwrap() {
             let entry = entry.unwrap();
             let path = entry.path();
             let data = std::fs::read(&path).unwrap();
             let text = String::from_utf8_lossy(&data);
 
-            // 1. Must start with age encryption header
             assert!(
                 text.starts_with("age-encryption.org"),
                 "File {:?} does not look like an age-encrypted file",
                 path
             );
 
-            // 2. Must be decryptable with the correct key
             let decrypted = decrypt(&identity, &data).expect(
                 "Failed to decrypt file — key mismatch or corruption"
             );
 
-            // 3. Decrypted content must match original
             let original_note = notes.iter().find(|(name, _)| path.file_name().unwrap() == *name).unwrap();
             assert_eq!(
                 String::from_utf8_lossy(&decrypted),
@@ -232,9 +235,7 @@ mod tests {
                 path
             );
 
-            // 4. No plaintext from any note should appear in any encrypted file
             for (_, original_content) in &notes {
-                // Check that distinctive phrases from each note don't appear in the encrypted file
                 let distinctive_phrases = vec![
                     "Meeting notes",
                     "Shopping list",
@@ -255,7 +256,6 @@ mod tests {
             }
         }
 
-        // Cleanup
         std::fs::remove_dir_all(&sync_dir).ok();
     }
 }

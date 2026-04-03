@@ -44,6 +44,7 @@ struct SyncStatusDto {
 #[derive(serde::Serialize)]
 struct KeyPairDto {
     public_key: String,
+    secret_key: String,
 }
 
 // ── Note commands ──
@@ -206,7 +207,7 @@ fn generate_sync_key(state: State<Arc<AppState>>) -> Result<KeyPairDto, String> 
         *key_guard = Some(key_path);
     }
 
-    Ok(KeyPairDto { public_key })
+    Ok(KeyPairDto { public_key, secret_key })
 }
 
 #[tauri::command]
@@ -226,7 +227,7 @@ fn import_sync_key(key_str: String, state: State<Arc<AppState>>) -> Result<KeyPa
         *key_guard = Some(key_path);
     }
 
-    Ok(KeyPairDto { public_key })
+    Ok(KeyPairDto { public_key, secret_key: key_str })
 }
 
 #[tauri::command]
