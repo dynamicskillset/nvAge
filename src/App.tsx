@@ -513,6 +513,15 @@ function App() {
     setSyncLoading(true);
     setSyncError(null);
     try {
+      const validation = await invoke<{ git_installed: boolean; key_exists: boolean; remote_reachable: boolean; errors: string[] }>(
+        "validate_sync_setup",
+        { remoteUrl: syncRemoteUrl.trim() }
+      );
+      if (validation.errors.length > 0) {
+        setSyncError(validation.errors.join("\n"));
+        setSyncLoading(false);
+        return;
+      }
       await invoke("configure_sync", { remoteUrl: syncRemoteUrl.trim(), branch: syncBranch });
       setSyncStep("done");
       fetchSyncStatus();
@@ -671,6 +680,15 @@ function App() {
           <div className="error-banner" role="alert" aria-live="assertive">
             <span>{error}</span>
             <button onClick={() => setError(null)} aria-label="Dismiss error">
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {syncStatus === "conflict" && (
+          <div className="conflict-banner" role="alert" aria-live="assertive">
+            <span>{syncMessage}</span>
+            <button onClick={() => { setSyncStatus("idle"); setSyncMessage(""); }} aria-label="Dismiss conflict warning">
               Dismiss
             </button>
           </div>

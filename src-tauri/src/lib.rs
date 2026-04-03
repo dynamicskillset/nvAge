@@ -251,6 +251,58 @@ fn configure_sync(remote_url: String, branch: String, state: State<Arc<AppState>
     Ok(())
 }
 
+#[derive(serde::Serialize)]
+struct ValidationDto {
+    git_installed: bool,
+    key_exists: bool,
+    remote_reachable: bool,
+    errors: Vec<String>,
+}
+
+#[tauri::command]
+fn validate_sync_setup(remote_url: String, state: State<Arc<AppState>>) -> Result<ValidationDto, String> {
+    let mut errors = Vec::new();
+
+    // Check Git is installed
+    let git_installed = std::process::Command::new("git")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if !git_installed {
+        errors.push("Git is not installed. Install Git to use sync.".to_string());
+    }
+
+    // Check key exists
+    let key_path = {
+        let guard = state.sync_key_path.lock().map_err(|e| e.to_string())?;
+        guard.clone()
+    };
+    let key_exists = key_path.as_ref().map(|p| p.exists()).unwrap_or(false);
+    if !key_exists {
+        errors.push("No encryption key found. Generate or import a key first.".to_string());
+    }
+
+    // Check remote is reachable (only if URL provided and Git is installed)
+    let mut remote_reachable = false;
+    if git_installed && !remote_url.is_empty() {
+        let output = std::process::Command::new("git")
+            .args(["ls-remote", "--exit-code", "--heads", &remote_url])
+            .output();
+        remote_reachable = output.map(|o| o.status.success()).unwrap_or(false);
+        if !remote_reachable {
+            errors.push("Cannot reach remote repo. Check the URL and your access.".to_string());
+        }
+    }
+
+    Ok(ValidationDto {
+        git_installed,
+        key_exists,
+        remote_reachable,
+        errors,
+    })
+}
+
 #[tauri::command]
 fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStatusDto, String> {
     let key_path = {
@@ -423,6 +475,7 @@ pub fn run() {
             configure_sync,
             sync_notes,
             get_sync_status,
+            validate_sync_setup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
