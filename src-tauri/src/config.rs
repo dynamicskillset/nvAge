@@ -3,8 +3,31 @@ use std::fs;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WindowState {
+    pub width: f64,
+    pub height: f64,
+    pub x: i32,
+    pub y: i32,
+    pub is_maximized: bool,
+}
+
+impl Default for WindowState {
+    fn default() -> Self {
+        Self {
+            width: 960.0,
+            height: 640.0,
+            x: 0,
+            y: 0,
+            is_maximized: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub notes_folder: PathBuf,
+    #[serde(default)]
+    pub window: WindowState,
 }
 
 impl AppConfig {
@@ -26,6 +49,7 @@ impl AppConfig {
         if !path.exists() {
             let config = Self {
                 notes_folder: Self::default_notes_folder(),
+                window: WindowState::default(),
             };
             config.save()?;
             return Ok(config);

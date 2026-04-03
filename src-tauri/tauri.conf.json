@@ -15,7 +15,9 @@
         "title": "nvAge",
         "width": 960,
         "height": 640,
-        "resizable": true
+        "resizable": true,
+        "decorations": true,
+        "transparent": false
       }
     ],
     "security": {

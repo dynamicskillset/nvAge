@@ -8,7 +8,7 @@ mod watcher;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tauri::State;
+use tauri::{Manager, State};
 use sync_provider::SyncProvider;
 
 struct AppState {
@@ -427,6 +427,7 @@ fn update_files(state: Arc<AppState>, changed: &[std::path::PathBuf]) {
 pub fn run() {
     let config = config::AppConfig::load().expect("Failed to load config");
     let notes_folder = config.notes_folder.clone();
+    let window_state = config.window.clone();
 
     std::fs::create_dir_all(&notes_folder).expect("Failed to create notes folder");
 
@@ -459,6 +460,46 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(app_state)
+        .setup(move |app| {
+            let window = app.get_webview_window("main").unwrap();
+            if window_state.is_maximized {
+                let _ = window.maximize();
+            } else {
+                let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                    width: window_state.width as u32,
+                    height: window_state.height as u32,
+                }));
+                let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                    x: window_state.x,
+                    y: window_state.y,
+                }));
+            }
+
+            // Save window state on close
+            let app_handle = app.handle().clone();
+            window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api: _, .. } = event {
+                    if let Some(win) = app_handle.get_webview_window("main") {
+                        if let (Ok(size), Ok(position), Ok(is_maximized)) =
+                            (win.inner_size(), win.outer_position(), win.is_maximized())
+                        {
+                            if let Ok(mut cfg) = config::AppConfig::load() {
+                                cfg.window = config::WindowState {
+                                    width: size.width as f64,
+                                    height: size.height as f64,
+                                    x: position.x,
+                                    y: position.y,
+                                    is_maximized,
+                                };
+                                let _ = cfg.save();
+                            }
+                        }
+                    }
+                }
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             search_notes,
             get_note,

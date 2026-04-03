@@ -215,7 +215,9 @@ function App() {
   const [undoTimeout, setUndoTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem("nvage-theme");
-    return (saved === "light" || saved === "dark") ? saved : "dark";
+    if (saved === "light" || saved === "dark") return saved;
+    // Default to OS preference
+    return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
   });
   const [prevResultIds, setPrevResultIds] = useState<string[]>([]);
   const noteListRef = useRef<HTMLDivElement>(null);
@@ -242,6 +244,19 @@ function App() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("nvage-theme", theme);
   }, [theme]);
+
+  // Listen for OS theme changes (only if user hasn't manually overridden)
+  useEffect(() => {
+    const saved = localStorage.getItem("nvage-theme");
+    if (saved) return; // user has manually set a theme, don't auto-switch
+
+    const mq = window.matchMedia("(prefers-color-scheme: light)");
+    const handler = (e: MediaQueryListEvent) => {
+      setTheme(e.matches ? "light" : "dark");
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const toggleTheme = useCallback((e?: React.MouseEvent) => {
     const x = e?.clientX ?? window.innerWidth / 2;
