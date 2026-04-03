@@ -8,9 +8,9 @@ A local-first, cross-platform desktop notes app in the tradition of Notational V
 
 Full product spec: `nvage-prd.md`
 
-## Current Status: Milestone 1 Complete, Milestone 2 Backend Done
+## Current Status: Milestone 2 Complete
 
-Milestone 1 is polished and shipped. Milestone 2 backend is complete — `SyncProvider` trait, `age` encryption module, Git sync provider, and 5 new IPC commands are all implemented and compiling. The sync setup UI (frontend) remains. Milestone 3 (robustness) follows.
+Milestone 1 and Milestone 2 are both complete. The app supports local note-taking with instant search, Nord theming, animations, and encrypted sync via Git. Milestone 3 (robustness) is next.
 
 ---
 
@@ -150,15 +150,15 @@ Milestone 1 is polished and shipped. Milestone 2 backend is complete — `SyncPr
 
 ## What's Not Done
 
-### Milestone 2: Encrypted Sync (Backend Done, UI Remaining)
+### Milestone 2: Encrypted Sync — Complete
 - [x] `SyncProvider` trait abstraction
 - [x] `age` encryption module (Rust `age` crate)
 - [x] Git sync provider (shell out to `git` CLI)
-- [ ] Key generation/import UI flow
+- [x] Key generation/import UI flow
 - [x] Push cycle: encrypt → stage → commit → push
 - [x] Pull cycle: fetch → pull → decrypt → reindex
-- [ ] Sync status indicator in UI
-- [ ] Security integration test (assert no plaintext in sync destination)
+- [x] Sync status indicator in UI
+- [x] Security integration test (assert no plaintext in sync destination)
 
 ### Milestone 3: Robustness
 - [ ] Conflict detection and conflict file creation (backend partial — saves conflict files, no UI warning)
@@ -173,9 +173,9 @@ Milestone 1 is polished and shipped. Milestone 2 backend is complete — `SyncPr
 
 - **Git** — `https://github.com/dynamicskillset/nvAge`
 - **Kin** — semantic VCS at `.kin/`
-- Latest git commit: `a22018f` — ":sparkles: Milestone 2 backend: SyncProvider trait, age encryption module, Git sync provider, 5 new IPC commands"
-- Latest kin commit: `cdac398f` — same
-- Total entities tracked: 134
+- Latest git commit: `d16c2c9` — ":white_check_mark: security integration test — asserts no plaintext in sync destination"
+- Latest kin commit: `c3908196` — same
+- Total entities tracked: 150
 
 ---
 
