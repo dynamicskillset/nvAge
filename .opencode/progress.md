@@ -8,9 +8,9 @@ A local-first, cross-platform desktop notes app in the tradition of Notational V
 
 Full product spec: `nvage-prd.md`
 
-## Current Status: Milestone 1 Complete — Polished
+## Current Status: Milestone 1 Complete, Milestone 2 Backend Done
 
-The core local notes app is built, functional, and visually polished. Nord theme with dark/light mode toggle, responsive layout, accessibility hardening, and cinematic animations are all in place. Milestones 2 (encrypted sync) and 3 (robustness) remain.
+Milestone 1 is polished and shipped. Milestone 2 backend is complete — `SyncProvider` trait, `age` encryption module, Git sync provider, and 5 new IPC commands are all implemented and compiling. The sync setup UI (frontend) remains. Milestone 3 (robustness) follows.
 
 ---
 
@@ -29,15 +29,19 @@ The core local notes app is built, functional, and visually polished. Nord theme
 
 | File | Purpose |
 |---|---|
-| `lib.rs` | Tauri app core: `AppState` (config + search index via `Arc<Mutex<>>`), 7 IPC commands, filesystem watcher setup, incremental index updates |
+| `lib.rs` | Tauri app core: `AppState` (config + search index + sync provider + key path via `Arc<Mutex<>>`), 12 IPC commands (7 notes + 5 sync), filesystem watcher setup, incremental index updates |
 | `config.rs` | App config: loads/saves JSON at `~/.config/nvage/config.json` with `notes_folder` path |
-| `note.rs` | Note model: `Note` struct, YAML frontmatter parsing/serialization, slug-based filenames, CRUD file I/O |
+| `note.rs` | Note model: `Note` struct, YAML frontmatter parsing/serialization, slug-based filenames, CRUD file I/O, `deserialize_content` for sync |
 | `index.rs` | SQLite search index: database at `.nvage/search.db`, incremental updates, LIKE-based substring search, rebuild/insert/delete/search operations |
 | `watcher.rs` | Filesystem watcher via `notify` crate: watches for `.md` changes, passes changed file paths for incremental reindex |
+| `crypto.rs` | `age` encryption module: key generation/import, encrypt/decrypt, file-level encryption, ASCII-armoured output |
+| `sync_provider.rs` | `SyncProvider` trait: `push`, `pull`, `sync`, `status`, `is_configured` methods, `SyncStatus` and `SyncResult` types |
+| `sync_git.rs` | Git sync provider: shells out to `git` CLI, clone/fetch, encrypt notes to `<uuid>.md.age`, stage/commit/push, pull/decrypt, conflict detection |
 | `main.rs` | Binary entry point |
 
 ### Tauri IPC Commands
 
+#### Note commands
 | Command | Direction | Purpose |
 |---|---|---|
 | `search_notes(query)` | Frontend → Backend | Substring search (LIKE), returns `SearchResult[]` ordered by recency |
@@ -48,6 +52,15 @@ The core local notes app is built, functional, and visually polished. Nord theme
 | `set_notes_folder(folder)` | Frontend → Backend | Change notes directory, rebuild index |
 | `get_notes_folder()` | Frontend → Backend | Get current notes folder path |
 
+#### Sync commands
+| Command | Direction | Purpose |
+|---|---|---|
+| `generate_sync_key()` | Frontend → Backend | Generate new `age` keypair, save to `~/.config/nvage/key.txt` |
+| `import_sync_key(key_str)` | Frontend → Backend | Import existing `age` key from string |
+| `configure_sync(remote_url, branch)` | Frontend → Backend | Set up Git sync provider with remote repo URL |
+| `sync_notes(direction)` | Frontend → Backend | Run sync: `push`, `pull`, or `full` cycle |
+| `get_sync_status()` | Frontend → Backend | Get current sync status (idle, syncing, error, conflict, not_configured) |
+
 ---
 
 ## Key Design Decisions Made
@@ -55,7 +68,7 @@ The core local notes app is built, functional, and visually polished. Nord theme
 ### Note Identity
 - UUID stored in YAML frontmatter (`id`, `created`) provides stable identity across renames
 - Filename derived from title slug (human-readable), UUID used internally
-- Encrypted remote files will use UUID as filename (planned for Milestone 2)
+- Encrypted remote files use UUID as filename (`<uuid>.md.age`) — title not leaked to sync destination
 
 ### Search
 - SQLite with LIKE-based substring matching (replaced FTS5 — simpler, more predictable for short queries)
@@ -74,6 +87,19 @@ The core local notes app is built, functional, and visually polished. Nord theme
 - Toggle button on the editor empty state (sun/moon SVG icons)
 - Theme persisted in `localStorage`
 - View Transition circular reveal on theme switch (Chrome/Edge/Safari)
+
+### Encryption
+- `age` crate for file-level encryption (X25519 public-key)
+- ASCII-armoured output for portability
+- Secret key stored at `~/.config/nvage/key.txt` with `0600` permissions (Unix)
+- Private key never transmitted, committed, or included in sync
+
+### Sync
+- `SyncProvider` trait abstraction allows swapping providers (Git v1, folder-based future)
+- Git provider shells out to `git` CLI — user must have Git installed
+- Sync repo cloned to `~/.cache/nvage/sync-repo` (hidden working tree)
+- Generic commit messages (`Update notes`) to avoid leaking note titles
+- Conflict files saved as `<title>.conflict-<date>.md`
 
 ### UX
 - Keyboard-first: ↑↓ navigate, Enter open/create, Escape back to search, `?` for shortcuts
@@ -118,24 +144,24 @@ The core local notes app is built, functional, and visually polished. Nord theme
 `tailwindcss`, `@tailwindcss/vite`, `@tauri-apps/cli`, `typescript`, `vite`, `@vitejs/plugin-react`, `@types/react`, `@types/react-dom`
 
 ### Rust
-`tauri`, `tauri-plugin-opener`, `serde`, `serde_json`, `serde_yaml`, `uuid`, `chrono`, `rusqlite` (bundled), `notify`, `slug`, `once_cell`, `log`, `anyhow`, `dirs`
+`tauri`, `tauri-plugin-opener`, `serde`, `serde_json`, `serde_yaml`, `uuid`, `chrono`, `rusqlite` (bundled), `notify`, `slug`, `once_cell`, `log`, `anyhow`, `dirs`, `age` (with `armor` feature), `rand`
 
 ---
 
-## What's Not Done (Milestones 2 & 3)
+## What's Not Done
 
-### Milestone 2: Encrypted Sync
-- [ ] `SyncProvider` trait abstraction
-- [ ] `age` encryption module (Rust `age` crate)
-- [ ] Git sync provider (shell out to `git` CLI)
+### Milestone 2: Encrypted Sync (Backend Done, UI Remaining)
+- [x] `SyncProvider` trait abstraction
+- [x] `age` encryption module (Rust `age` crate)
+- [x] Git sync provider (shell out to `git` CLI)
 - [ ] Key generation/import UI flow
-- [ ] Push cycle: encrypt → stage → commit → push
-- [ ] Pull cycle: fetch → pull → decrypt → reindex
+- [x] Push cycle: encrypt → stage → commit → push
+- [x] Pull cycle: fetch → pull → decrypt → reindex
 - [ ] Sync status indicator in UI
 - [ ] Security integration test (assert no plaintext in sync destination)
 
 ### Milestone 3: Robustness
-- [ ] Conflict detection and conflict file creation
+- [ ] Conflict detection and conflict file creation (backend partial — saves conflict files, no UI warning)
 - [ ] Conflict warning in UI
 - [ ] Graceful handling of failed push/pull
 - [ ] Setup validation (Git installed, key accessible, remote reachable)
@@ -145,9 +171,11 @@ The core local notes app is built, functional, and visually polished. Nord theme
 
 ## Version Control
 
-- **Kin** — semantic VCS initialized at `.kin/`
-- Latest commit: `991a0399` — "fix search highlighting (regex state bug, CSS specificity), remove autosave pulse, fix theme toggle icons"
-- Total entities tracked: 95
+- **Git** — `https://github.com/dynamicskillset/nvAge`
+- **Kin** — semantic VCS at `.kin/`
+- Latest git commit: `a22018f` — ":sparkles: Milestone 2 backend: SyncProvider trait, age encryption module, Git sync provider, 5 new IPC commands"
+- Latest kin commit: `cdac398f` — same
+- Total entities tracked: 134
 
 ---
 
@@ -170,4 +198,5 @@ npm run tauri build
 ## Config Location
 - Config: `~/.config/nvage/config.json`
 - Search index: `<notes_folder>/.nvage/search.db`
-- Private key (future): `~/.config/nvage/key.txt`
+- Private key: `~/.config/nvage/key.txt`
+- Sync repo cache: `~/.cache/nvage/sync-repo`
