@@ -212,6 +212,7 @@ function App() {
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [folderInput, setFolderInput] = useState("");
   const [deletedNote, setDeletedNote] = useState<Note | null>(null);
+  const [appVersion, setAppVersion] = useState("");
   const [undoTimeout, setUndoTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem("nvage-theme");
@@ -430,6 +431,7 @@ function App() {
     search("");
     searchInputRef.current?.focus();
     invoke<string>("get_notes_folder").then(setNotesFolder).catch(() => {});
+    invoke<string>("get_app_version").then(setAppVersion).catch(() => {});
   }, [search]);
 
   // Keyboard navigation — Enter opens selected note, or shows create confirmation
@@ -783,6 +785,7 @@ function App() {
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
           </button>
+          <span className="version-label">{appVersion ? `v${appVersion}` : ""}</span>
         </div>
       </div>
       )}

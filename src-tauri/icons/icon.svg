@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background: Nord Polar Night (nord0) -->
+  <rect width="512" height="512" rx="112" fill="#2e3440"/>
+
+  <!-- Notepad body: Nord Snow Storm (nord4) -->
+  <rect x="128" y="96" width="256" height="320" rx="16" fill="#d8dee9"/>
+
+  <!-- Notepad lines: Nord Polar Night (nord3) -->
+  <rect x="160" y="160" width="192" height="8" rx="4" fill="#4c566a"/>
+  <rect x="160" y="200" width="160" height="8" rx="4" fill="#4c566a"/>
+  <rect x="160" y="240" width="176" height="8" rx="4" fill="#4c566a"/>
+  <rect x="160" y="280" width="128" height="8" rx="4" fill="#4c566a"/>
+  <rect x="160" y="320" width="144" height="8" rx="4" fill="#4c566a"/>
+
+  <!-- Accent line: Nord Frost (nord8) -->
+  <rect x="160" y="128" width="64" height="8" rx="4" fill="#88c0d0"/>
+
+  <!-- Pencil: Nord Aurora red (nord11) -->
+  <g transform="translate(340, 340) rotate(-45)">
+    <rect x="0" y="0" width="16" height="80" rx="2" fill="#bf616a"/>
+    <polygon points="0,80 16,80 8,96" fill="#eceff4"/>
+    <rect x="0" y="0" width="16" height="12" rx="2" fill="#d08770"/>
+  </g>
+</svg>

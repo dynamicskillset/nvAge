@@ -183,6 +183,11 @@ fn get_notes_folder(state: State<Arc<AppState>>) -> Result<String, String> {
     Ok(config.notes_folder.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 // ── Sync commands ──
 
 #[tauri::command]
@@ -209,7 +214,6 @@ fn import_sync_key(key_str: String, state: State<Arc<AppState>>) -> Result<KeyPa
     let identity = crypto::parse_secret_key(&key_str).map_err(|e| e.to_string())?;
     let public_key = identity.to_public().to_string();
 
-    let config = state.config.lock().map_err(|e| e.to_string())?;
     let key_dir = dirs::config_dir()
         .ok_or_else(|| "Cannot determine config directory".to_string())?
         .join("nvage");
@@ -263,13 +267,11 @@ struct ValidationDto {
 fn validate_sync_setup(remote_url: String, state: State<Arc<AppState>>) -> Result<ValidationDto, String> {
     let mut errors = Vec::new();
 
-    // Check Git is installed
     let git_installed = sync_git::find_git().is_ok();
     if !git_installed {
         errors.push("Git is not installed. Install Git to use sync.".to_string());
     }
 
-    // Check key exists
     let key_path = {
         let guard = state.sync_key_path.lock().map_err(|e| e.to_string())?;
         guard.clone()
@@ -279,7 +281,6 @@ fn validate_sync_setup(remote_url: String, state: State<Arc<AppState>>) -> Resul
         errors.push("No encryption key found. Generate or import a key first.".to_string());
     }
 
-    // Check remote is reachable (only if URL provided and Git is installed)
     let mut remote_reachable = false;
     if git_installed && !remote_url.is_empty() {
         let git_path = sync_git::find_git().unwrap_or_else(|_| "git".to_string());
@@ -351,7 +352,6 @@ fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStat
 
     let result = result?;
 
-    // Rebuild index after pull to pick up any decrypted notes
     if direction == "pull" || direction == "full" {
         let mut index = state.search_index.lock().map_err(|e| e.to_string())?;
         let _ = index.rebuild(&folder);
@@ -434,7 +434,6 @@ pub fn run() {
     let search_index =
         index::SearchIndex::new(&notes_folder).expect("Failed to create search index");
 
-    // Check for existing sync key
     let key_path = dirs::config_dir()
         .map(|d| d.join("nvage").join("key.txt"))
         .filter(|p| p.exists());
@@ -446,7 +445,6 @@ pub fn run() {
         sync_key_path: Mutex::new(key_path),
     });
 
-    // Set up filesystem watcher
     let watcher_state = Arc::clone(&app_state);
     let _watcher = watcher::FsWatcher::new(&notes_folder, move |_folder, changed| {
         std::thread::sleep(std::time::Duration::from_millis(300));
@@ -454,7 +452,6 @@ pub fn run() {
     })
     .expect("Failed to create filesystem watcher");
 
-    // Keep watcher alive for the lifetime of the app
     std::mem::forget(_watcher);
 
     tauri::Builder::default()
@@ -475,7 +472,6 @@ pub fn run() {
                 }));
             }
 
-            // Save window state on close
             let app_handle = app.handle().clone();
             window.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { api: _, .. } = event {
@@ -508,6 +504,7 @@ pub fn run() {
             delete_note_cmd,
             set_notes_folder,
             get_notes_folder,
+            get_app_version,
             generate_sync_key,
             import_sync_key,
             configure_sync,

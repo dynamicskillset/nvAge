@@ -88,4 +88,4 @@ This project uses [Pride Versioning](https://pridever.org/) (`PROUD.DEFAULT.SHAM
 
 ## Licence
 
-MIT
+AGPL-3.0 — see [LICENSE](LICENSE) for details.

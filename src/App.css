@@ -30,9 +30,9 @@
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -144,7 +144,7 @@
 }
 
 .note-item-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-primary);
   white-space: nowrap;
@@ -869,6 +869,16 @@
 .folder-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.version-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.3;
+  padding: 0 8px;
+  align-self: center;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
 }
 
 .sync-dot {
