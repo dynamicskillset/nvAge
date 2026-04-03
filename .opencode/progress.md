@@ -8,9 +8,9 @@ A local-first, cross-platform desktop notes app in the tradition of Notational V
 
 Full product spec: `nvage-prd.md`
 
-## Current Status: Milestone 2 Complete
+## Current Status: All Three Milestones Complete
 
-Milestone 1 and Milestone 2 are both complete. The app supports local note-taking with instant search, Nord theming, animations, and encrypted sync via Git. Milestone 3 (robustness) is next.
+Milestones 1, 2, and 3 are all complete. The app supports local note-taking with instant search, Nord theming, animations, encrypted sync via Git, setup validation, conflict detection, and graceful error handling.
 
 ---
 
@@ -160,12 +160,12 @@ Milestone 1 and Milestone 2 are both complete. The app supports local note-takin
 - [x] Sync status indicator in UI
 - [x] Security integration test (assert no plaintext in sync destination)
 
-### Milestone 3: Robustness
-- [ ] Conflict detection and conflict file creation (backend partial — saves conflict files, no UI warning)
-- [ ] Conflict warning in UI
-- [ ] Graceful handling of failed push/pull
-- [ ] Setup validation (Git installed, key accessible, remote reachable)
-- [ ] Error recovery and clear error messages
+### Milestone 3: Robustness — Complete
+- [x] Conflict detection and conflict file creation (saves `<title>.conflict-<date>.md` files)
+- [x] Conflict warning in UI (amber banner with dismiss button)
+- [x] Graceful handling of failed push/pull (clear error messages in sync card)
+- [x] Setup validation (Git installed, key accessible, remote reachable)
+- [x] Error recovery and clear error messages (error banner with dismiss, retry via sync card)
 
 ---
 
@@ -173,9 +173,9 @@ Milestone 1 and Milestone 2 are both complete. The app supports local note-takin
 
 - **Git** — `https://github.com/dynamicskillset/nvAge`
 - **Kin** — semantic VCS at `.kin/`
-- Latest git commit: `d16c2c9` — ":white_check_mark: security integration test — asserts no plaintext in sync destination"
-- Latest kin commit: `c3908196` — same
-- Total entities tracked: 150
+- Latest git commit: `522c619` — ":safety_vest: Milestone 3 — setup validation, conflict warning banner, graceful error handling"
+- Latest kin commit: `a4c41961` — same
+- Total entities tracked: 152
 
 ---
 

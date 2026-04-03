@@ -19,7 +19,6 @@ Your notes are just Markdown files in a folder you choose. You can open them in 
 
 ## What's Coming
 
-- **Conflict handling** — when you edit the same note on two devices, both versions are kept safely
 - **Mobile support** — not yet, but it's on the list
 
 ## For Developers
