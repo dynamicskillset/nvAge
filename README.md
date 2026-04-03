@@ -1,26 +1,45 @@
-# nvAge 🏳️‍🌈
+# nvAge
 
-A local-first, keyboard-first notes app in the tradition of [Notational Velocity](https://notational.net/) and [nvALT](https://brettterpstra.com/projects/nvalt/). Built with [Tauri v2](https://v2.tauri.app/) (Rust backend + React/TypeScript frontend). Notes stored as plain Markdown files with UUID-based identity in YAML frontmatter.
+A fast, private notes app for your desktop. Type to search, press Enter to create. Your notes live as plain text files on your own machine — no accounts, no cloud, no one else reading them.
 
-**The pitch:** launch the app, start typing, find or create a note instantly. No accounts, no cloud, no fuss. Your notes live in a normal folder on your disk — readable by any text editor, grep-able, portable.
+## What It Does
 
-## Features
+Open the app and start typing. Your notes appear instantly as you type. Press Enter to open one, or to create a new note if nothing matches. That's the whole thing.
 
-- **Instant search** — full-text search across all notes on every keystroke, backed by SQLite
-- **Keyboard-first** — arrow keys navigate, Enter opens or creates, Escape returns to search
-- **Plain Markdown** — each note is a `.md` file with YAML frontmatter for stable UUID identity
-- **Autosave** — 300ms debounced save on every edit, no manual save flow
-- **Filesystem watching** — notes edited outside the app (in Vim, VS Code, etc.) are picked up and reindexed automatically
-- **Nord theme** — dark and light modes using the [Nord colour palette](https://nordtheme.com)
-- **Cinematic transitions** — View Transitions for note open/close, FLIP animations for list reordering, staggered entry effects
+Your notes are just Markdown files in a folder you choose. You can open them in any text editor, search them with your terminal, back them up however you like. The app doesn't own your notes — you do.
 
-## What's Not Here (Yet)
+## Keyboard Shortcuts
 
-- **Encrypted sync** — planned using [`age`](https://age-encryption.org/) encryption + Git as the sync provider
-- **Conflict resolution** — detection and conflict file creation for multi-device use
-- **Mobile support** — desktop only for now (macOS + Linux)
+| Key | Action |
+|-----|--------|
+| ↑ / ↓ | Move through search results |
+| Enter | Open selected note, or create a new one |
+| Escape | Go back to search |
+| ? | Show keyboard shortcuts |
 
-## Quick Start
+## What's Coming
+
+- **Encrypted sync** — share notes between devices, encrypted so only you can read them
+- **Conflict handling** — when you edit the same note on two devices, both versions are kept safely
+- **Mobile support** — not yet, but it's on the list
+
+## For Developers
+
+<details>
+<summary>Technical details, build instructions, and configuration</summary>
+
+### Stack
+
+Built with [Tauri v2](https://v2.tauri.app/) — Rust backend, React/TypeScript frontend. Notes stored as plain Markdown with YAML frontmatter for UUID identity.
+
+| Layer | Technology |
+|-------|-----------|
+| Shell | [Tauri v2](https://v2.tauri.app/) |
+| Frontend | React + TypeScript + Vite |
+| Editor | [CodeMirror 6](https://codemirror.net/) |
+| Search | SQLite (`LIKE` substring matching) |
+| File watching | [notify](https://crates.io/crates/notify) crate |
+| Styling | Nord colour palette, CSS custom properties |
 
 ### Prerequisites
 
@@ -51,7 +70,7 @@ npm run tauri build
 ./src-tauri/target/debug/nvage
 ```
 
-## Configuration
+### Configuration
 
 Config lives at `~/.config/nvage/config.json`:
 
@@ -63,20 +82,11 @@ Config lives at `~/.config/nvage/config.json`:
 
 The search index is stored at `<notes_folder>/.nvage/search.db` — treated as a disposable cache, never synced.
 
-## Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Shell | [Tauri v2](https://v2.tauri.app/) |
-| Frontend | React + TypeScript + Vite |
-| Editor | [CodeMirror 6](https://codemirror.net/) |
-| Search | SQLite (no FTS5 — simple `LIKE` substring matching) |
-| File watching | [notify](https://crates.io/crates/notify) crate |
-| Styling | Nord colour palette, CSS custom properties |
-
-## Versioning
+### Versioning
 
 This project uses [Pride Versioning](https://pridever.org/) (`PROUD.DEFAULT.SHAME`) and [Gitmoji](https://gitmoji.dev/) for commit messages.
+
+</details>
 
 ## Licence
 

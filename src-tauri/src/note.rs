@@ -14,6 +14,13 @@ pub struct Note {
     pub path: PathBuf,
 }
 
+impl Note {
+    /// Serialize the note to its full file content (frontmatter + body).
+    pub fn serialize(&self) -> String {
+        serialize_note(self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NoteSummary {
     pub id: Uuid,
@@ -94,6 +101,26 @@ pub fn deserialize_note(path: &Path) -> Result<Note, anyhow::Error> {
         created,
         modified,
         path: path.to_path_buf(),
+    })
+}
+
+/// Deserialize a note from raw content string (used when decrypting from sync).
+/// Returns the parsed Note without a valid path (caller must set it).
+pub fn deserialize_content(content: &str) -> Result<Note, anyhow::Error> {
+    let (id, created, body) = parse_frontmatter(content);
+
+    let id = id.unwrap_or_else(Uuid::new_v4);
+    let created = created.unwrap_or_else(Utc::now);
+    let title = extract_title(body);
+    let now = Utc::now();
+
+    Ok(Note {
+        id,
+        title,
+        content: body.to_string(),
+        created,
+        modified: now,
+        path: PathBuf::new(), // caller must set this
     })
 }
 

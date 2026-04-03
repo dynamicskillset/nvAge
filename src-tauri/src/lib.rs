@@ -1,15 +1,21 @@
 mod config;
+mod crypto;
 mod index;
 mod note;
+mod sync_git;
+mod sync_provider;
 mod watcher;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tauri::State;
+use sync_provider::SyncProvider;
 
 struct AppState {
     config: Mutex<config::AppConfig>,
     search_index: Mutex<index::SearchIndex>,
+    sync_provider: Mutex<Option<sync_git::GitSyncProvider>>,
+    sync_key_path: Mutex<Option<PathBuf>>,
 }
 
 #[derive(serde::Serialize)]
@@ -28,6 +34,19 @@ struct NoteDto {
     created: String,
     modified: String,
 }
+
+#[derive(serde::Serialize)]
+struct SyncStatusDto {
+    status: String,
+    message: String,
+}
+
+#[derive(serde::Serialize)]
+struct KeyPairDto {
+    public_key: String,
+}
+
+// ── Note commands ──
 
 #[tauri::command]
 fn search_notes(query: String, state: State<Arc<AppState>>) -> Result<Vec<SearchResult>, String> {
@@ -164,6 +183,181 @@ fn get_notes_folder(state: State<Arc<AppState>>) -> Result<String, String> {
     Ok(config.notes_folder.to_string_lossy().to_string())
 }
 
+// ── Sync commands ──
+
+#[tauri::command]
+fn generate_sync_key(state: State<Arc<AppState>>) -> Result<KeyPairDto, String> {
+    let (public_key, secret_key) = crypto::generate_key().map_err(|e| e.to_string())?;
+
+    let key_dir = dirs::config_dir()
+        .ok_or_else(|| "Cannot determine config directory".to_string())?
+        .join("nvage");
+    let key_path = key_dir.join("key.txt");
+
+    crypto::save_secret_key(&key_path, &secret_key).map_err(|e| e.to_string())?;
+
+    {
+        let mut key_guard = state.sync_key_path.lock().map_err(|e| e.to_string())?;
+        *key_guard = Some(key_path);
+    }
+
+    Ok(KeyPairDto { public_key })
+}
+
+#[tauri::command]
+fn import_sync_key(key_str: String, state: State<Arc<AppState>>) -> Result<KeyPairDto, String> {
+    let identity = crypto::parse_secret_key(&key_str).map_err(|e| e.to_string())?;
+    let public_key = identity.to_public().to_string();
+
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let key_dir = dirs::config_dir()
+        .ok_or_else(|| "Cannot determine config directory".to_string())?
+        .join("nvage");
+    let key_path = key_dir.join("key.txt");
+
+    crypto::save_secret_key(&key_path, &key_str).map_err(|e| e.to_string())?;
+
+    {
+        let mut key_guard = state.sync_key_path.lock().map_err(|e| e.to_string())?;
+        *key_guard = Some(key_path);
+    }
+
+    Ok(KeyPairDto { public_key })
+}
+
+#[tauri::command]
+fn configure_sync(remote_url: String, branch: String, state: State<Arc<AppState>>) -> Result<(), String> {
+    let key_path = {
+        let guard = state.sync_key_path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or_else(|| "No sync key configured. Generate or import a key first.".to_string())?
+    };
+
+    if !key_path.exists() {
+        return Err("Sync key file not found. Generate or import a key first.".to_string());
+    }
+
+    let repo_path = dirs::cache_dir()
+        .ok_or_else(|| "Cannot determine cache directory".to_string())?
+        .join("nvage")
+        .join("sync-repo");
+
+    let provider = sync_git::GitSyncProvider::new(remote_url, branch, repo_path);
+
+    {
+        let mut provider_guard = state.sync_provider.lock().map_err(|e| e.to_string())?;
+        *provider_guard = Some(provider);
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStatusDto, String> {
+    let key_path = {
+        let guard = state.sync_key_path.lock().map_err(|e| e.to_string())?;
+        guard.clone().ok_or_else(|| "No sync key configured.".to_string())?
+    };
+
+    let folder = {
+        let config = state.config.lock().map_err(|e| e.to_string())?;
+        config.notes_folder.clone()
+    };
+
+    let mut provider_guard = state.sync_provider.lock().map_err(|e| e.to_string())?;
+    let provider = provider_guard.as_mut().ok_or_else(|| "Sync not configured.".to_string())?;
+
+    let result: Result<SyncStatusDto, String> = match direction.as_str() {
+        "push" => {
+            let count = provider.push(&folder, &key_path).map_err(|e| e.to_string())?;
+            Ok(SyncStatusDto {
+                status: "idle".to_string(),
+                message: format!("Pushed {} notes", count),
+            })
+        }
+        "pull" => {
+            let (count, conflicts) = provider.pull(&folder, &key_path).map_err(|e| e.to_string())?;
+            if !conflicts.is_empty() {
+                Ok(SyncStatusDto {
+                    status: "conflict".to_string(),
+                    message: format!("Pulled {} notes, {} conflicts detected", count, conflicts.len()),
+                })
+            } else {
+                Ok(SyncStatusDto {
+                    status: "idle".to_string(),
+                    message: format!("Pulled {} notes", count),
+                })
+            }
+        }
+        "full" => {
+            let pushed = provider.push(&folder, &key_path).map_err(|e| e.to_string())?;
+            let (pulled, conflicts) = provider.pull(&folder, &key_path).map_err(|e| e.to_string())?;
+            let status = if conflicts.is_empty() { "idle" } else { "conflict" };
+            Ok(SyncStatusDto {
+                status: status.to_string(),
+                message: format!("Pushed {} notes, pulled {} notes", pushed, pulled),
+            })
+        }
+        _ => Err("Invalid sync direction. Use 'push', 'pull', or 'full'.".to_string()),
+    };
+
+    let result = result?;
+
+    // Rebuild index after pull to pick up any decrypted notes
+    if direction == "pull" || direction == "full" {
+        let mut index = state.search_index.lock().map_err(|e| e.to_string())?;
+        let _ = index.rebuild(&folder);
+    }
+
+    Ok(result)
+}
+
+#[tauri::command]
+fn get_sync_status(state: State<Arc<AppState>>) -> Result<SyncStatusDto, String> {
+    let provider_guard = state.sync_provider.lock().map_err(|e| e.to_string())?;
+    let key_guard = state.sync_key_path.lock().map_err(|e| e.to_string())?;
+
+    if key_guard.is_none() {
+        return Ok(SyncStatusDto {
+            status: "not_configured".to_string(),
+            message: "No sync key configured".to_string(),
+        });
+    }
+
+    match provider_guard.as_ref() {
+        Some(provider) => {
+            let status = provider.status();
+            match status {
+                sync_provider::SyncStatus::NotConfigured => Ok(SyncStatusDto {
+                    status: "not_configured".to_string(),
+                    message: "Sync provider not configured".to_string(),
+                }),
+                sync_provider::SyncStatus::Idle => Ok(SyncStatusDto {
+                    status: "idle".to_string(),
+                    message: "Ready to sync".to_string(),
+                }),
+                sync_provider::SyncStatus::Syncing => Ok(SyncStatusDto {
+                    status: "syncing".to_string(),
+                    message: "Sync in progress".to_string(),
+                }),
+                sync_provider::SyncStatus::Error(msg) => Ok(SyncStatusDto {
+                    status: "error".to_string(),
+                    message: msg,
+                }),
+                sync_provider::SyncStatus::Conflict(paths) => Ok(SyncStatusDto {
+                    status: "conflict".to_string(),
+                    message: format!("{} conflicts detected", paths.len()),
+                }),
+            }
+        }
+        None => Ok(SyncStatusDto {
+            status: "not_configured".to_string(),
+            message: "Sync not configured".to_string(),
+        }),
+    }
+}
+
+// ── Helpers ──
+
 fn update_files(state: Arc<AppState>, changed: &[std::path::PathBuf]) {
     let folder = {
         let config = match state.config.lock() {
@@ -190,9 +384,16 @@ pub fn run() {
     let search_index =
         index::SearchIndex::new(&notes_folder).expect("Failed to create search index");
 
+    // Check for existing sync key
+    let key_path = dirs::config_dir()
+        .map(|d| d.join("nvage").join("key.txt"))
+        .filter(|p| p.exists());
+
     let app_state = Arc::new(AppState {
         config: Mutex::new(config),
         search_index: Mutex::new(search_index),
+        sync_provider: Mutex::new(None),
+        sync_key_path: Mutex::new(key_path),
     });
 
     // Set up filesystem watcher
@@ -217,6 +418,11 @@ pub fn run() {
             delete_note_cmd,
             set_notes_folder,
             get_notes_folder,
+            generate_sync_key,
+            import_sync_key,
+            configure_sync,
+            sync_notes,
+            get_sync_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
