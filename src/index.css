@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+/* ── Dark theme (default) ── */
+:root,
+[data-theme="dark"] {
+  /* Polar Night */
+  --bg-primary: #2e3440;
+  --bg-secondary: #3b4252;
+  --bg-tertiary: #434c5e;
+  --bg-hover: #4c566a;
+  --bg-active: #434c5e;
+
+  /* Snow Storm */
+  --text-primary: #eceff4;
+  --text-secondary: #d8dee9;
+  --text-muted: #d8dee9;
+  --text-muted-opacity: 0.5;
+
+  /* Frost */
+  --border-color: #4c566a;
+  --accent: #88c0d0;
+  --accent-hover: #81a1c1;
+
+  /* Aurora (semantic) */
+  --danger: #bf616a;
+  --danger-hover: #d08770;
+  --danger-bg: rgba(191, 97, 106, 0.1);
+
+  /* Selection */
+  --selection-bg: #5e81ac;
+  --selection-text: #eceff4;
+
+  /* Editor */
+  --editor-bg: #2e3440;
+  --editor-text: #eceff4;
+  --editor-cursor: #eceff4;
+  --editor-selection: #5e81ac;
+  --editor-heading: #eceff4;
+  --editor-link: #88c0d0;
+  --editor-emphasis: #d8dee9;
+  --editor-monospace: #d8dee9;
+  --editor-strikethrough: #4c566a;
+  --editor-atom: #4c566a;
+}
+
+/* ── Light theme ── */
+[data-theme="light"] {
+  /* Snow Storm (as backgrounds) */
+  --bg-primary: #eceff4;
+  --bg-secondary: #e5e9f0;
+  --bg-tertiary: #d8dee9;
+  --bg-hover: #d8dee9;
+  --bg-active: #d8dee9;
+
+  /* Polar Night (as text) */
+  --text-primary: #2e3440;
+  --text-secondary: #3b4252;
+  --text-muted: #4c566a;
+  --text-muted-opacity: 0.7;
+
+  /* Frost */
+  --border-color: #d8dee9;
+  --accent: #5e81ac;
+  --accent-hover: #81a1c1;
+
+  /* Aurora (semantic) */
+  --danger: #bf616a;
+  --danger-hover: #d08770;
+  --danger-bg: rgba(191, 97, 106, 0.1);
+
+  /* Selection */
+  --selection-bg: #88c0d0;
+  --selection-text: #2e3440;
+
+  /* Editor */
+  --editor-bg: #eceff4;
+  --editor-text: #2e3440;
+  --editor-cursor: #2e3440;
+  --editor-selection: #88c0d0;
+  --editor-heading: #2e3440;
+  --editor-link: #5e81ac;
+  --editor-emphasis: #3b4252;
+  --editor-monospace: #3b4252;
+  --editor-strikethrough: #4c566a;
+  --editor-atom: #4c566a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-hover);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
