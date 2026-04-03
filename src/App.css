@@ -713,3 +713,336 @@
     animation: none !important;
   }
 }
+
+/* ── Sync status indicator (sidebar footer) ── */
+
+.sidebar-footer {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.sync-status-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: var(--text-muted-opacity);
+}
+
+.sync-status-btn:hover {
+  background: var(--bg-hover);
+  opacity: 1;
+  color: var(--text-secondary);
+}
+
+.sync-status-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sync-dot-not_configured {
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
+.sync-dot-idle {
+  background: #a3be8c;
+}
+
+.sync-dot-syncing {
+  background: #ebcb8b;
+  animation: sync-pulse 1.5s ease-in-out infinite;
+}
+
+.sync-dot-error {
+  background: #bf616a;
+}
+
+.sync-dot-conflict {
+  background: #d08770;
+}
+
+@keyframes sync-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.sync-label {
+  white-space: nowrap;
+}
+
+/* ── Sync setup overlay ── */
+
+.sync-overlay {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklch, var(--bg-primary) 90%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fade-in 0.15s ease-out;
+}
+
+.sync-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 32px;
+  width: 400px;
+  max-width: calc(100vw - 48px);
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slide-up 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sync-close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+
+.sync-close-btn:hover {
+  color: var(--text-primary);
+}
+
+.sync-step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sync-step-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sync-step-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.sync-step-desc a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.sync-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(191, 97, 106, 0.1);
+  border: 1px solid rgba(191, 97, 106, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #bf616a;
+  line-height: 1.4;
+}
+
+.sync-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.sync-tip {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.sync-tip a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.sync-key-display {
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+}
+
+.sync-key-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.sync-key-code {
+  display: block;
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-secondary);
+  word-break: break-all;
+  user-select: all;
+  padding: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+.sync-import {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-label-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.sync-textarea,
+.sync-input {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: monospace;
+  outline: none;
+  transition: border-color 0.15s;
+  resize: vertical;
+}
+
+.sync-input {
+  font-family: inherit;
+}
+
+.sync-textarea:focus,
+.sync-input:focus {
+  border-color: var(--accent);
+}
+
+.sync-textarea::placeholder,
+.sync-input::placeholder {
+  color: var(--text-muted);
+  opacity: var(--text-muted-opacity);
+}
+
+.sync-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.sync-divider::before,
+.sync-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.sync-primary-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  color: var(--bg-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.sync-primary-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.sync-primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sync-primary-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sync-secondary-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sync-secondary-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sync-secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sync-secondary-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sync-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-error-text {
+  font-size: 13px;
+  color: var(--danger);
+  padding: 8px 12px;
+  background: var(--danger-bg);
+  border-radius: 6px;
+}
+
+@media (max-width: 699px) {
+  .sync-card {
+    width: calc(100vw - 32px);
+    padding: 24px;
+  }
+
+  .sync-primary-btn,
+  .sync-secondary-btn {
+    min-height: 44px;
+  }
+}

@@ -191,6 +191,18 @@ function App() {
   const [prevResultIds, setPrevResultIds] = useState<string[]>([]);
   const noteListRef = useRef<HTMLDivElement>(null);
 
+  // Sync state
+  const [showSyncSetup, setShowSyncSetup] = useState(false);
+  const [syncStep, setSyncStep] = useState<"welcome" | "key" | "remote" | "done">("welcome");
+  const [syncKey, setSyncKey] = useState("");
+  const [syncPublicKey, setSyncPublicKey] = useState("");
+  const [syncRemoteUrl, setSyncRemoteUrl] = useState("");
+  const [syncBranch, setSyncBranch] = useState("main");
+  const [syncStatus, setSyncStatus] = useState<string>("not_configured");
+  const [syncMessage, setSyncMessage] = useState("");
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -451,6 +463,93 @@ function App() {
     return date.toLocaleDateString();
   }, []);
 
+  // ── Sync handlers ──
+
+  const fetchSyncStatus = useCallback(async () => {
+    try {
+      const res = await invoke<{ status: string; message: string }>("get_sync_status");
+      setSyncStatus(res.status);
+      setSyncMessage(res.message);
+    } catch {
+      setSyncStatus("not_configured");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSyncStatus();
+  }, [fetchSyncStatus]);
+
+  const handleGenerateKey = useCallback(async () => {
+    setSyncLoading(true);
+    setSyncError(null);
+    try {
+      const res = await invoke<{ public_key: string }>("generate_sync_key");
+      setSyncPublicKey(res.public_key);
+      setSyncStep("remote");
+    } catch (e) {
+      setSyncError(`Failed to generate key: ${e}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  }, []);
+
+  const handleImportKey = useCallback(async () => {
+    if (!syncKey.trim()) return;
+    setSyncLoading(true);
+    setSyncError(null);
+    try {
+      const res = await invoke<{ public_key: string }>("import_sync_key", { keyStr: syncKey.trim() });
+      setSyncPublicKey(res.public_key);
+      setSyncStep("remote");
+    } catch (e) {
+      setSyncError(`Invalid key: ${e}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  }, [syncKey]);
+
+  const handleConfigureRemote = useCallback(async () => {
+    if (!syncRemoteUrl.trim()) return;
+    setSyncLoading(true);
+    setSyncError(null);
+    try {
+      await invoke("configure_sync", { remoteUrl: syncRemoteUrl.trim(), branch: syncBranch });
+      setSyncStep("done");
+      fetchSyncStatus();
+    } catch (e) {
+      setSyncError(`Failed to configure remote: ${e}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  }, [syncRemoteUrl, syncBranch, fetchSyncStatus]);
+
+  const handleSync = useCallback(async (direction: string) => {
+    setSyncLoading(true);
+    setSyncError(null);
+    try {
+      const res = await invoke<{ status: string; message: string }>("sync_notes", { direction });
+      setSyncStatus(res.status);
+      setSyncMessage(res.message);
+      if (direction === "pull" || direction === "full") {
+        await search(query);
+      }
+    } catch (e) {
+      setSyncError(`Sync failed: ${e}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  }, [query, search]);
+
+  const openSyncSetup = useCallback(() => {
+    fetchSyncStatus();
+    setShowSyncSetup(true);
+    if (syncStatus === "not_configured") {
+      setSyncStep("welcome");
+    } else {
+      setSyncStep("done");
+    }
+  }, [fetchSyncStatus, syncStatus]);
+
   return (
     <div className="app">
       {showSidebarView && (
@@ -544,6 +643,24 @@ function App() {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="sidebar-footer">
+          <button
+            className="sync-status-btn"
+            onClick={openSyncSetup}
+            aria-label={`Sync status: ${syncStatus}. Click to configure.`}
+            title={syncMessage || "Configure sync"}
+          >
+            <span className={`sync-dot sync-dot-${syncStatus}`} />
+            <span className="sync-label">
+              {syncStatus === "not_configured" && "Set up sync"}
+              {syncStatus === "idle" && "Sync"}
+              {syncStatus === "syncing" && "Syncing..."}
+              {syncStatus === "error" && "Sync error"}
+              {syncStatus === "conflict" && "Conflicts"}
+            </span>
+          </button>
         </div>
       </div>
       )}
@@ -675,6 +792,158 @@ function App() {
           </div>
         )}
       </div>
+      )}
+
+      {/* ── Sync Setup Overlay ── */}
+      {showSyncSetup && (
+        <div className="sync-overlay" onClick={() => setShowSyncSetup(false)}>
+          <div className="sync-card" onClick={(e) => e.stopPropagation()}>
+            <button className="sync-close-btn" onClick={() => setShowSyncSetup(false)} aria-label="Close">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+
+            {/* Step 1: Welcome */}
+            {syncStep === "welcome" && (
+              <div className="sync-step">
+                <div className="sync-step-title">Sync your notes</div>
+                <div className="sync-step-desc">
+                  Keep your notes safe across devices. Your notes are encrypted before they leave this computer — only you can read them.
+                </div>
+                <button className="sync-primary-btn" onClick={() => setSyncStep("key")}>
+                  Get started
+                </button>
+                <button className="sync-secondary-btn" onClick={() => setShowSyncSetup(false)}>
+                  Not now
+                </button>
+              </div>
+            )}
+
+            {/* Step 2: Key */}
+            {syncStep === "key" && (
+              <div className="sync-step">
+                <div className="sync-step-title">Your encryption key</div>
+                <div className="sync-step-desc">
+                  This key locks and unlocks your notes. If you lose it, your synced notes cannot be recovered.
+                </div>
+
+                <div className="sync-warning">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                  <span>Keep this key safe. There is no password reset.</span>
+                </div>
+
+                <button className="sync-primary-btn" onClick={handleGenerateKey} disabled={syncLoading}>
+                  {syncLoading ? "Generating..." : "Generate a key for me"}
+                </button>
+
+                <div className="sync-divider">
+                  <span>or</span>
+                </div>
+
+                <div className="sync-import">
+                  <label htmlFor="sync-key-input" className="sync-label-text">Paste an existing key</label>
+                  <textarea
+                    id="sync-key-input"
+                    className="sync-textarea"
+                    value={syncKey}
+                    onChange={(e) => setSyncKey(e.target.value)}
+                    placeholder="AGE-SECRET-KEY-..."
+                    rows={3}
+                  />
+                  <button className="sync-secondary-btn" onClick={handleImportKey} disabled={syncLoading || !syncKey.trim()}>
+                    Import key
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Remote */}
+            {syncStep === "remote" && (
+              <div className="sync-step">
+                <div className="sync-step-title">Where to store your notes</div>
+                <div className="sync-step-desc">
+                  Your notes will be encrypted and stored in a Git repository. If you use GitHub, create a <strong>private</strong> repo first.
+                </div>
+
+                {syncPublicKey && (
+                  <div className="sync-key-display">
+                    <span className="sync-key-label">Your public key (for other devices)</span>
+                    <code className="sync-key-code">{syncPublicKey}</code>
+                  </div>
+                )}
+
+                <div className="sync-tip">
+                  <strong>New to GitHub?</strong>{" "}
+                  <a href="https://github.com/new" target="_blank" rel="noopener noreferrer">
+                    Create a private repo here
+                  </a>, then copy the URL below the repo name.
+                </div>
+
+                <div className="sync-import">
+                  <label htmlFor="sync-remote-input" className="sync-label-text">Repository URL</label>
+                  <input
+                    id="sync-remote-input"
+                    className="sync-input"
+                    type="text"
+                    value={syncRemoteUrl}
+                    onChange={(e) => setSyncRemoteUrl(e.target.value)}
+                    placeholder="https://github.com/yourname/your-repo.git"
+                  />
+
+                  <label htmlFor="sync-branch-input" className="sync-label-text">Branch</label>
+                  <input
+                    id="sync-branch-input"
+                    className="sync-input"
+                    type="text"
+                    value={syncBranch}
+                    onChange={(e) => setSyncBranch(e.target.value)}
+                    placeholder="main"
+                  />
+                </div>
+
+                <button className="sync-primary-btn" onClick={handleConfigureRemote} disabled={syncLoading || !syncRemoteUrl.trim()}>
+                  {syncLoading ? "Connecting..." : "Connect"}
+                </button>
+
+                {syncError && <div className="sync-error-text">{syncError}</div>}
+              </div>
+            )}
+
+            {/* Step 4: Done */}
+            {syncStep === "done" && (
+              <div className="sync-step">
+                <div className="sync-step-title">Sync</div>
+                <div className="sync-step-desc">
+                  {syncMessage || "Your notes are ready to sync."}
+                </div>
+
+                <div className="sync-actions">
+                  <button className="sync-primary-btn" onClick={() => handleSync("full")} disabled={syncLoading}>
+                    {syncLoading ? "Syncing..." : "Sync now"}
+                  </button>
+                  <button className="sync-secondary-btn" onClick={() => handleSync("push")} disabled={syncLoading}>
+                    Push only
+                  </button>
+                  <button className="sync-secondary-btn" onClick={() => handleSync("pull")} disabled={syncLoading}>
+                    Pull only
+                  </button>
+                </div>
+
+                {syncError && <div className="sync-error-text">{syncError}</div>}
+
+                <div className="sync-divider"><span>or</span></div>
+
+                <button className="sync-secondary-btn" onClick={() => setShowSyncSetup(false)}>
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
