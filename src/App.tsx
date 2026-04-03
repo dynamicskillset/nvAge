@@ -157,6 +157,29 @@ function buildEditorTheme() {
   ];
 }
 
+// ── User-friendly error messages ──
+function friendlyError(raw: unknown, action: string): string {
+  const msg = String(raw);
+
+  // Strip Tauri IPC wrapper noise
+  const clean = msg.replace(/^Error: failed to call `[^`]+` handler: /, "");
+
+  // Map common patterns
+  if (clean.includes("No such file or directory") || clean.includes("os error 2")) {
+    if (action === "sync") return "Git is not installed or cannot be found. Install Git to use sync.";
+    return "A required file is missing. Check your notes folder exists.";
+  }
+  if (clean.includes("No sync key configured")) return "Set up your encryption key first.";
+  if (clean.includes("Sync not configured")) return "Configure sync before running it.";
+  if (clean.includes("Note not found")) return "This note no longer exists.";
+  if (clean.includes("Failed to load config")) return "Could not read the config file.";
+  if (clean.includes("Failed to create search index")) return "Could not create the search index.";
+  if (clean.includes("Failed to create filesystem watcher")) return "Could not watch your notes folder for changes.";
+
+  // Default: show the clean message
+  return `${action}: ${clean}`;
+}
+
 interface SearchResult {
   id: string;
   title: string;
@@ -184,6 +207,12 @@ function App() {
   const [showCreateConfirm, setShowCreateConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isNarrow, setIsNarrow] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notesFolder, setNotesFolder] = useState("");
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [folderInput, setFolderInput] = useState("");
+  const [deletedNote, setDeletedNote] = useState<Note | null>(null);
+  const [undoTimeout, setUndoTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem("nvage-theme");
     return (saved === "light" || saved === "dark") ? saved : "dark";
@@ -237,13 +266,18 @@ function App() {
   // Build editor theme from current CSS variables (rebuilds on theme change)
   const editorTheme = buildEditorTheme();
 
+  // Derive display title client-side for new notes
+  const displayTitle = activeNote?.title || (editorContent ? editorContent.split("\n")[0].replace(/^#\s*/, "").trim() : "New note");
+
   const search = useCallback(async (q: string) => {
     try {
       const res = await invoke<SearchResult[]>("search_notes", { query: q });
       setResults(res);
+      setIsLoading(false);
       setError(null);
     } catch (e) {
-      setError(`Search failed: ${e}`);
+      setError(friendlyError(e, "Search failed"));
+      setIsLoading(false);
     }
   }, []);
 
@@ -269,7 +303,7 @@ function App() {
         setError(null);
       }
     } catch (e) {
-      setError(`Failed to open note: ${e}`);
+      setError(friendlyError(e, "Failed to open note"));
     }
   }, []);
 
@@ -293,7 +327,7 @@ function App() {
       await search("");
       setError(null);
     } catch (e) {
-      setError(`Failed to create note: ${e}`);
+      setError(friendlyError(e, "Failed to create note"));
     }
   }, [search]);
 
@@ -308,22 +342,44 @@ function App() {
       await search(query);
       setError(null);
     } catch (e) {
-      setError(`Failed to save note: ${e}`);
+      setError(friendlyError(e, "Failed to save note"));
     }
   }, [activeNote, query, search]);
 
   const deleteNote = useCallback(async (id: string) => {
     try {
+      const noteToUndo = activeNote ? { ...activeNote } : null;
       await invoke("delete_note_cmd", { id });
       setActiveNote(null);
       setIsEditing(false);
       setEditorContent("");
       await search(query);
       setError(null);
+
+      // Set up undo
+      if (noteToUndo) {
+        setDeletedNote(noteToUndo);
+        const timeout = setTimeout(() => {
+          setDeletedNote(null);
+        }, 5000);
+        setUndoTimeout(timeout);
+      }
     } catch (e) {
-      setError(`Failed to delete note: ${e}`);
+      setError(friendlyError(e, "Failed to delete note"));
     }
-  }, [query, search]);
+  }, [activeNote, query, search]);
+
+  const undoDelete = useCallback(async () => {
+    if (!deletedNote) return;
+    if (undoTimeout) clearTimeout(undoTimeout);
+    try {
+      await invoke<Note>("create_note", { title: deletedNote.title, content: deletedNote.content });
+      setDeletedNote(null);
+      await search(query);
+    } catch (e) {
+      setError(friendlyError(e, "Failed to restore note"));
+    }
+  }, [deletedNote, undoTimeout, query, search]);
 
   // Reset delete confirmation when switching notes
   useEffect(() => {
@@ -354,10 +410,11 @@ function App() {
     };
   }, [editorContent, isEditing, activeNote, saveNote]);
 
-  // Focus search on mount
+  // Focus search on mount, load notes folder
   useEffect(() => {
     search("");
     searchInputRef.current?.focus();
+    invoke<string>("get_notes_folder").then(setNotesFolder).catch(() => {});
   }, [search]);
 
   // Keyboard navigation — Enter opens selected note, or shows create confirmation
@@ -388,6 +445,10 @@ function App() {
           setShowCreateConfirm(false);
           return;
         }
+        if (showFolderPicker) {
+          setShowFolderPicker(false);
+          return;
+        }
         setDeleteConfirm(false);
         if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
         if (isEditing) {
@@ -396,12 +457,12 @@ function App() {
         setQuery("");
         setSelectedIdx(-1);
         searchInputRef.current?.focus();
-      } else if (e.key === "?" && !isEditing) {
+      } else if (e.key === "?" && !isEditing && !query.trim()) {
         e.preventDefault();
         setShowShortcuts((prev) => !prev);
       }
     },
-    [selectedIdx, results, query, selectNote, createNote, isEditing, showShortcuts, showCreateConfirm]
+    [selectedIdx, results, query, selectNote, createNote, isEditing, showShortcuts, showCreateConfirm, showFolderPicker]
   );
 
   const handleEditorChange = useCallback((value: string) => {
@@ -487,7 +548,7 @@ function App() {
       setSyncPublicKey(res.public_key);
       setSyncStep("remote");
     } catch (e) {
-      setSyncError(`Failed to generate key: ${e}`);
+      setSyncError(friendlyError(e, "Failed to generate key"));
     } finally {
       setSyncLoading(false);
     }
@@ -502,7 +563,7 @@ function App() {
       setSyncPublicKey(res.public_key);
       setSyncStep("remote");
     } catch (e) {
-      setSyncError(`Invalid key: ${e}`);
+      setSyncError(friendlyError(e, "Invalid key"));
     } finally {
       setSyncLoading(false);
     }
@@ -526,7 +587,7 @@ function App() {
       setSyncStep("done");
       fetchSyncStatus();
     } catch (e) {
-      setSyncError(`Failed to configure remote: ${e}`);
+      setSyncError(friendlyError(e, "Failed to configure remote"));
     } finally {
       setSyncLoading(false);
     }
@@ -543,7 +604,7 @@ function App() {
         await search(query);
       }
     } catch (e) {
-      setSyncError(`Sync failed: ${e}`);
+      setSyncError(friendlyError(e, "Sync failed"));
     } finally {
       setSyncLoading(false);
     }
@@ -558,6 +619,20 @@ function App() {
       setSyncStep("done");
     }
   }, [fetchSyncStatus, syncStatus]);
+
+  // ── Notes folder ──
+
+  const handleChangeFolder = useCallback(async () => {
+    if (!folderInput.trim()) return;
+    try {
+      await invoke("set_notes_folder", { folder: folderInput.trim() });
+      setNotesFolder(folderInput.trim());
+      setShowFolderPicker(false);
+      await search("");
+    } catch (e) {
+      setError(friendlyError(e, "Failed to change notes folder"));
+    }
+  }, [folderInput, search]);
 
   return (
     <div className="app">
@@ -586,7 +661,13 @@ function App() {
             </button>
           </div>
 
-          <div className="note-list" role="listbox" aria-label="Search results">
+          <div className="note-list" role="listbox" aria-label="Search results" ref={noteListRef}>
+          {isLoading ? (
+            <div className="empty-state">
+              <div className="empty-state-hint">Loading...</div>
+            </div>
+          ) : (
+            <>
           {results.map((result, idx) => (
             <div
               key={result.id}
@@ -640,7 +721,12 @@ function App() {
             <div className="create-confirm" role="status" aria-live="polite">
               <div className="create-confirm-text">Create note?</div>
               <div className="create-confirm-title">&quot;{query}&quot;</div>
-              <div className="create-confirm-hint">Press Enter to confirm, Escape to cancel</div>
+              <div className="create-confirm-hint">
+                Press Enter to confirm, Escape or click outside to cancel
+              </div>
+              <button className="create-confirm-cancel" onClick={() => setShowCreateConfirm(false)}>
+                Cancel
+              </button>
             </div>
           )}
 
@@ -652,7 +738,9 @@ function App() {
               </div>
             </div>
           )}
-        </div>
+            </>
+          )}
+          </div>
 
         <div className="sidebar-footer">
           <button
@@ -670,6 +758,16 @@ function App() {
               {syncStatus === "conflict" && "Conflicts"}
             </span>
           </button>
+          <button
+            className="folder-btn"
+            onClick={() => { setFolderInput(notesFolder); setShowFolderPicker(true); }}
+            aria-label="Change notes folder"
+            title="Change notes folder"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
         </div>
       </div>
       )}
@@ -681,6 +779,15 @@ function App() {
             <span>{error}</span>
             <button onClick={() => setError(null)} aria-label="Dismiss error">
               Dismiss
+            </button>
+          </div>
+        )}
+
+        {deletedNote && (
+          <div className="undo-banner" role="status" aria-live="polite">
+            <span>Note deleted</span>
+            <button onClick={undoDelete} aria-label="Undo delete">
+              Undo
             </button>
           </div>
         )}
@@ -713,9 +820,9 @@ function App() {
               <span
                 className="editor-title"
                 style={activeNote ? { viewTransitionName: `note-title-${activeNote.id}` } : undefined}
-                aria-label={`Editing: ${activeNote?.title || "New note"}`}
+                aria-label={`Editing: ${displayTitle}`}
               >
-                {activeNote?.title || "New note"}
+                {displayTitle}
               </span>
               {activeNote && (
                 <button
@@ -803,8 +910,43 @@ function App() {
                 <span>Back to search</span>
               </div>
               <div className="shortcut-row">
+                <kbd>+</kbd>
+                <span>New note</span>
+              </div>
+              <div className="shortcut-row">
                 <kbd>?</kbd>
-                <span>This help</span>
+                <span>This help (when search is empty)</span>
+              </div>
+              <div className="shortcut-row">
+                <kbd>Del</kbd>
+                <span>Delete note (click twice to confirm)</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showFolderPicker && (
+          <div className="folder-overlay" onClick={() => setShowFolderPicker(false)}>
+            <div className="folder-card" onClick={(e) => e.stopPropagation()}>
+              <div className="folder-card-title">Notes folder</div>
+              <div className="folder-card-desc">
+                Your notes are stored as plain Markdown files in this folder.
+              </div>
+              <input
+                className="folder-input"
+                type="text"
+                value={folderInput}
+                onChange={(e) => setFolderInput(e.target.value)}
+                placeholder="/path/to/notes"
+                aria-label="Notes folder path"
+              />
+              <div className="folder-actions">
+                <button className="sync-primary-btn" onClick={handleChangeFolder}>
+                  Change
+                </button>
+                <button className="sync-secondary-btn" onClick={() => setShowFolderPicker(false)}>
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
