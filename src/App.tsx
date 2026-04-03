@@ -843,7 +843,7 @@ function App() {
               <div className="sync-step">
                 <div className="sync-step-title">Your encryption key</div>
                 <div className="sync-step-desc">
-                  This key locks and unlocks your notes. If you lose it, your synced notes cannot be recovered.
+                  This key is used to encrypt your notes before they are sent to your remote storage. Your notes on this device are always safe — they stay as plain Markdown files on your computer.
                 </div>
 
                 <div className="sync-warning">
@@ -851,7 +851,7 @@ function App() {
                     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                     <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                   </svg>
-                  <span>Keep this key safe. There is no password reset.</span>
+                  <span>If you lose this key, your synced copies on other devices cannot be read. Keep a backup somewhere safe.</span>
                 </div>
 
                 <button className="sync-primary-btn" onClick={handleGenerateKey} disabled={syncLoading}>
@@ -863,19 +863,21 @@ function App() {
                 </div>
 
                 <div className="sync-import">
-                  <label htmlFor="sync-key-input" className="sync-label-text">Paste an existing key</label>
+                  <label htmlFor="sync-key-input" className="sync-label-text">Already have a key from another device?</label>
                   <textarea
                     id="sync-key-input"
                     className="sync-textarea"
                     value={syncKey}
                     onChange={(e) => setSyncKey(e.target.value)}
-                    placeholder="AGE-SECRET-KEY-..."
+                    placeholder="AGE-SECRET-KEY-1..."
                     rows={3}
                   />
                   <button className="sync-secondary-btn" onClick={handleImportKey} disabled={syncLoading || !syncKey.trim()}>
-                    Import key
+                    {syncLoading ? "Importing..." : "Use this key"}
                   </button>
                 </div>
+
+                {syncError && <div className="sync-error-text">{syncError}</div>}
               </div>
             )}
 

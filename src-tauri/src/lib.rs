@@ -264,11 +264,7 @@ fn validate_sync_setup(remote_url: String, state: State<Arc<AppState>>) -> Resul
     let mut errors = Vec::new();
 
     // Check Git is installed
-    let git_installed = std::process::Command::new("git")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    let git_installed = sync_git::find_git().is_ok();
     if !git_installed {
         errors.push("Git is not installed. Install Git to use sync.".to_string());
     }
@@ -286,7 +282,8 @@ fn validate_sync_setup(remote_url: String, state: State<Arc<AppState>>) -> Resul
     // Check remote is reachable (only if URL provided and Git is installed)
     let mut remote_reachable = false;
     if git_installed && !remote_url.is_empty() {
-        let output = std::process::Command::new("git")
+        let git_path = sync_git::find_git().unwrap_or_else(|_| "git".to_string());
+        let output = std::process::Command::new(git_path)
             .args(["ls-remote", "--exit-code", "--heads", &remote_url])
             .output();
         remote_reachable = output.map(|o| o.status.success()).unwrap_or(false);

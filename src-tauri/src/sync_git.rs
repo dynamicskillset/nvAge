@@ -4,6 +4,29 @@ use crate::crypto;
 use crate::note;
 use crate::sync_provider::{SyncProvider, SyncStatus};
 
+/// Find the git binary. Tauri apps don't inherit shell PATH, so we
+/// search common locations before falling back to just "git".
+pub fn find_git() -> Result<String, anyhow::Error> {
+    let candidates = [
+        "/usr/bin/git",
+        "/usr/local/bin/git",
+        "/opt/homebrew/bin/git",
+        "/home/linuxbrew/.linuxbrew/bin/git",
+        "git",
+    ];
+
+    for path in &candidates {
+        let output = Command::new(path).arg("--version").output();
+        if let Ok(o) = output {
+            if o.status.success() {
+                return Ok(path.to_string());
+            }
+        }
+    }
+
+    anyhow::bail!("Git is not installed. Install Git to use sync.")
+}
+
 /// Git-based sync provider that shells out to the `git` CLI.
 ///
 /// Push cycle:
@@ -56,7 +79,8 @@ impl GitSyncProvider {
 
     /// Run a git command in the repo directory.
     fn git(&self, args: &[&str]) -> Result<std::process::Output, anyhow::Error> {
-        let output = Command::new("git")
+        let git_path = find_git()?;
+        let output = Command::new(&git_path)
             .args(args)
             .current_dir(&self.repo_path)
             .output()?;
