@@ -254,7 +254,6 @@ function App() {
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [folderInput, setFolderInput] = useState("");
   const [deletedNote, setDeletedNote] = useState<Note | null>(null);
-  const [appVersion, setAppVersion] = useState("");
   const [showBin, setShowBin] = useState(false);
   const [binNotes, setBinNotes] = useState<Note[]>([]);
   const [undoTimeout, setUndoTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
@@ -489,21 +488,6 @@ function App() {
     search("");
     searchInputRef.current?.focus();
     invoke<string>("get_notes_folder").then(setNotesFolder).catch(() => {});
-    invoke<string>("get_app_version").then((v) => {
-      setAppVersion(v);
-      // Check GitHub for latest release
-      fetch("https://api.github.com/repos/dynamicskillset/nvage/releases/latest")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.tag_name) {
-            const latest = data.tag_name.replace(/^v/, "");
-            if (latest !== v) {
-              // Update available — handled by external link in settings
-            }
-          }
-        })
-        .catch(() => {});
-    }).catch(() => {});
   }, [search]);
 
   // Keyboard navigation — Enter opens selected note, or shows create confirmation
@@ -729,42 +713,29 @@ function App() {
     try {
       const notes = await invoke<Note[]>("list_deleted_notes_cmd");
       setBinNotes(notes);
-      setBinVisible(notes.length > 0);
     } catch {
       setBinNotes([]);
-      setBinVisible(false);
     }
   }, []);
-
-  // Show bin button after a few seconds, then load bin contents
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setBinVisible(true);
-      loadBin();
-    }, 3000);
-    return () => clearTimeout(timeout);
-  }, [loadBin]);
 
   const handleRestoreNote = useCallback(async (id: string) => {
     try {
       await invoke("restore_note_cmd", { id });
       setBinNotes(prev => prev.filter(n => n.id !== id));
-      if (binNotes.length <= 1) setBinVisible(false);
       await search(query);
     } catch (e) {
       setError(friendlyError(e, "Failed to restore note"));
     }
-  }, [query, search, binNotes.length]);
+  }, [query, search]);
 
   const handlePermanentDelete = useCallback(async (id: string) => {
     try {
       await invoke("permanent_delete_cmd", { id });
       setBinNotes(prev => prev.filter(n => n.id !== id));
-      if (binNotes.length <= 1) setBinVisible(false);
     } catch (e) {
       setError(friendlyError(e, "Failed to delete note"));
     }
-  }, [binNotes.length]);
+  }, []);
 
   // ── Notes folder ──
 
@@ -823,7 +794,6 @@ function App() {
                         await handlePermanentDelete(n.id);
                       }
                       setBinNotes([]);
-                      setBinVisible(false);
                       setShowBin(false);
                     }}
                   >
