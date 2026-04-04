@@ -188,7 +188,10 @@ function buildEditorTheme(theme: "dark" | "light") {
       ".cm-focused .cm-activeLine": {
         backgroundColor: "transparent !important",
       },
-      ".cm-selectionBackground": {
+      "& .cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection": {
+        background: `${c.selection} !important`,
+      },
+      "& .cm-selectionBackground ::selection": {
         background: `${c.selection} !important`,
       },
       ".cm-line": {
@@ -276,6 +279,7 @@ function App() {
   const [syncMessage, setSyncMessage] = useState("");
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [savedSyncConfig, setSavedSyncConfig] = useState<{ remote_url: string; branch: string } | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -486,6 +490,15 @@ function App() {
     search("");
     searchInputRef.current?.focus();
     invoke<string>("get_notes_folder").then(setNotesFolder).catch(() => {});
+    invoke<{ remote_url: string; branch: string } | null>("get_sync_config")
+      .then((cfg) => {
+        if (cfg) {
+          setSavedSyncConfig(cfg);
+          setSyncRemoteUrl(cfg.remote_url);
+          setSyncBranch(cfg.branch);
+        }
+      })
+      .catch(() => {});
   }, [search]);
 
   // Keyboard navigation — Enter opens selected note, or shows create confirmation
@@ -1210,6 +1223,19 @@ function App() {
                 <div className="sync-step-desc">
                   {syncMessage || "Your notes are ready to sync."}
                 </div>
+
+                {savedSyncConfig && (
+                  <div className="sync-config-info">
+                    <div className="sync-config-row">
+                      <span className="sync-config-label">Remote</span>
+                      <code className="sync-config-value">{savedSyncConfig.remote_url}</code>
+                    </div>
+                    <div className="sync-config-row">
+                      <span className="sync-config-label">Branch</span>
+                      <code className="sync-config-value">{savedSyncConfig.branch}</code>
+                    </div>
+                  </div>
+                )}
 
                 <div className="sync-actions">
                   <button className="sync-primary-btn" onClick={() => handleSync("full")} disabled={syncLoading}>

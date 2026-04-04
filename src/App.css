@@ -48,8 +48,10 @@
 }
 
 .new-note-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -389,6 +391,7 @@
   cursor: pointer;
   transition: all 0.15s;
   flex-shrink: 0;
+  min-height: 32px;
 }
 
 .delete-btn:hover {
@@ -510,7 +513,7 @@
 .cm-editor {
   height: 100% !important;
   max-width: 100vw !important;
-  overflow: hidden !important;
+  overflow: clip !important;
 }
 
 .cm-scroller {
@@ -518,6 +521,7 @@
   max-width: 100% !important;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  height: 100% !important;
 }
 
 .cm-scroller::-webkit-scrollbar {
@@ -946,20 +950,20 @@
 }
 
 .sync-dot-idle {
-  background: #a3be8c;
+  background: var(--success);
 }
 
 .sync-dot-syncing {
-  background: #ebcb8b;
+  background: var(--warning);
   animation: sync-pulse 1.5s ease-in-out infinite;
 }
 
 .sync-dot-error {
-  background: #bf616a;
+  background: var(--danger);
 }
 
 .sync-dot-conflict {
-  background: #d08770;
+  background: var(--conflict);
 }
 
 @keyframes sync-pulse {
@@ -1011,6 +1015,8 @@
   align-items: center;
   justify-content: center;
   transition: color 0.15s;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .sync-close-btn:hover {
@@ -1216,6 +1222,38 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.sync-config-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+}
+
+.sync-config-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sync-config-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  opacity: var(--text-muted-opacity);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sync-config-value {
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text-secondary);
+  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .sync-error-text {
