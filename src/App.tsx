@@ -257,6 +257,12 @@ function App() {
   const [appVersion, setAppVersion] = useState("");
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [latestVersion, setLatestVersion] = useState("");
+  const [showBin, setShowBin] = useState(false);
+  const [binNotes, setBinNotes] = useState<Note[]>([]);
+  const [binVisible, setBinVisible] = useState(false);
+  const [showBin, setShowBin] = useState(false);
+  const [binNotes, setBinNotes] = useState<Note[]>([]);
+  const [binVisible, setBinVisible] = useState(false);
   const [undoTimeout, setUndoTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem("nvage-theme");
@@ -724,6 +730,92 @@ function App() {
     return () => clearInterval(interval);
   }, [syncStatus, syncLoading, query, search]);
 
+  // ── Bin ──
+
+  const loadBin = useCallback(async () => {
+    try {
+      const notes = await invoke<Note[]>("list_deleted_notes_cmd");
+      setBinNotes(notes);
+      setBinVisible(notes.length > 0);
+    } catch {
+      setBinNotes([]);
+      setBinVisible(false);
+    }
+  }, []);
+
+  // Show bin button after a few seconds, then load bin contents
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setBinVisible(true);
+      loadBin();
+    }, 3000);
+    return () => clearTimeout(timeout);
+  }, [loadBin]);
+
+  const handleRestoreNote = useCallback(async (id: string) => {
+    try {
+      await invoke("restore_note_cmd", { id });
+      setBinNotes(prev => prev.filter(n => n.id !== id));
+      if (binNotes.length <= 1) setBinVisible(false);
+      await search(query);
+    } catch (e) {
+      setError(friendlyError(e, "Failed to restore note"));
+    }
+  }, [query, search, binNotes.length]);
+
+  const handlePermanentDelete = useCallback(async (id: string) => {
+    try {
+      await invoke("permanent_delete_cmd", { id });
+      setBinNotes(prev => prev.filter(n => n.id !== id));
+      if (binNotes.length <= 1) setBinVisible(false);
+    } catch (e) {
+      setError(friendlyError(e, "Failed to delete note"));
+    }
+  }, [binNotes.length]);
+
+  // ── Bin ──
+
+  const loadBin = useCallback(async () => {
+    try {
+      const notes = await invoke<Note[]>("list_deleted_notes_cmd");
+      setBinNotes(notes);
+      setBinVisible(notes.length > 0);
+    } catch {
+      setBinNotes([]);
+      setBinVisible(false);
+    }
+  }, []);
+
+  // Show bin button after a few seconds, then load bin contents
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setBinVisible(true);
+      loadBin();
+    }, 3000);
+    return () => clearTimeout(timeout);
+  }, [loadBin]);
+
+  const handleRestoreNote = useCallback(async (id: string) => {
+    try {
+      await invoke("restore_note_cmd", { id });
+      setBinNotes(prev => prev.filter(n => n.id !== id));
+      if (binNotes.length <= 1) setBinVisible(false);
+      await search(query);
+    } catch (e) {
+      setError(friendlyError(e, "Failed to restore note"));
+    }
+  }, [query, search, binNotes.length]);
+
+  const handlePermanentDelete = useCallback(async (id: string) => {
+    try {
+      await invoke("permanent_delete_cmd", { id });
+      setBinNotes(prev => prev.filter(n => n.id !== id));
+      if (binNotes.length <= 1) setBinVisible(false);
+    } catch (e) {
+      setError(friendlyError(e, "Failed to delete note"));
+    }
+  }, [binNotes.length]);
+
   // ── Notes folder ──
 
   const handleChangeFolder = useCallback(async () => {
@@ -766,6 +858,61 @@ function App() {
           </div>
 
           <div className="note-list" role="listbox" aria-label="Search results" ref={noteListRef}>
+          {showBin ? (
+            <>
+              <div className="bin-header">
+                <button className="bin-back-btn" onClick={() => setShowBin(false)}>
+                  ← Notes
+                </button>
+                <span className="bin-title">Bin</span>
+                {binNotes.length > 0 && (
+                  <button
+                    className="bin-empty-all-btn"
+                    onClick={async () => {
+                      for (const n of binNotes) {
+                        await handlePermanentDelete(n.id);
+                      }
+                      setBinNotes([]);
+                      setBinVisible(false);
+                      setShowBin(false);
+                    }}
+                  >
+                    Empty bin
+                  </button>
+                )}
+              </div>
+              {binNotes.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-text">Bin is empty</div>
+                  <div className="empty-state-hint">Deleted notes will appear here</div>
+                </div>
+              ) : (
+                binNotes.map((note) => (
+                  <div key={note.id} className="bin-item">
+                    <div className="bin-item-content">
+                      <div className="bin-item-title">{note.title}</div>
+                      <div className="bin-item-time">{formatRelativeTime(note.modified)}</div>
+                    </div>
+                    <div className="bin-item-actions">
+                      <button
+                        className="bin-restore-btn"
+                        onClick={() => handleRestoreNote(note.id)}
+                      >
+                        Restore
+                      </button>
+                      <button
+                        className="bin-delete-btn"
+                        onClick={() => handlePermanentDelete(note.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </>
+          ) : (
+          <>
           {isLoading ? (
             <div className="empty-state">
               <div className="empty-state-hint">Loading...</div>
@@ -881,16 +1028,19 @@ function App() {
             ?
           </button>
           <span className="version-label">{appVersion ? `v${appVersion}` : ""}</span>
-          {updateAvailable && (
-            <a
-              href="https://github.com/dynamicskillset/nvAge/releases/latest"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="update-badge"
-              title={`Update available: v${latestVersion}`}
+          {binVisible && (
+            <button
+              className={`bin-btn ${showBin ? "bin-active" : ""}`}
+              onClick={() => { setShowBin(!showBin); if (!showBin) loadBin(); }}
+              aria-label={`${binNotes.length} notes in bin`}
+              title="Bin"
             >
-              Update
-            </a>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              {binNotes.length > 0 && <span className="bin-count">{binNotes.length}</span>}
+            </button>
           )}
         </div>
       </div>

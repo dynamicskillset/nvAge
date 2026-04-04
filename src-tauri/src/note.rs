@@ -12,6 +12,8 @@ pub struct Note {
     pub created: DateTime<Utc>,
     pub modified: DateTime<Utc>,
     pub path: PathBuf,
+    pub deleted: bool,
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
 impl Note {
@@ -29,9 +31,9 @@ pub struct NoteSummary {
     pub modified: DateTime<Utc>,
 }
 
-pub fn parse_frontmatter(content: &str) -> (Option<Uuid>, Option<DateTime<Utc>>, &str) {
+pub fn parse_frontmatter(content: &str) -> (Option<Uuid>, Option<DateTime<Utc>>, Option<bool>, Option<DateTime<Utc>>, &str) {
     if !content.starts_with("---\n") {
-        return (None, None, content);
+        return (None, None, None, None, content);
     }
 
     let rest = &content[4..];
@@ -41,6 +43,8 @@ pub fn parse_frontmatter(content: &str) -> (Option<Uuid>, Option<DateTime<Utc>>,
 
         let mut id = None;
         let mut created = None;
+        let mut deleted = None;
+        let mut deleted_at = None;
 
         for line in frontmatter.lines() {
             if let Some((key, value)) = line.split_once(": ") {
@@ -55,36 +59,54 @@ pub fn parse_frontmatter(content: &str) -> (Option<Uuid>, Option<DateTime<Utc>>,
                             created = Some(dt.with_timezone(&Utc));
                         }
                     }
+                    "deleted" => {
+                        deleted = Some(value.trim() == "true");
+                    }
+                    "deleted_at" => {
+                        if let Ok(dt) = DateTime::parse_from_rfc3339(value.trim()) {
+                            deleted_at = Some(dt.with_timezone(&Utc));
+                        }
+                    }
                     _ => {}
                 }
             }
         }
 
-        (id, created, body)
+        (id, created, deleted, deleted_at, body)
     } else {
-        (None, None, content)
+        (None, None, None, None, content)
     }
 }
 
-pub fn build_frontmatter(id: Uuid, created: DateTime<Utc>) -> String {
-    format!(
-        "---\nid: {}\ncreated: {}\n---\n",
-        id,
-        created.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-    )
+pub fn build_frontmatter(note: &Note) -> String {
+    let mut fm = format!(
+        "---\nid: {}\ncreated: {}\n",
+        note.id,
+        note.created.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+    );
+    if note.deleted {
+        fm.push_str("deleted: true\n");
+        if let Some(dt) = note.deleted_at {
+            fm.push_str(&format!("deleted_at: {}\n", dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)));
+        }
+    }
+    fm.push_str("---\n");
+    fm
 }
 
 pub fn serialize_note(note: &Note) -> String {
-    let frontmatter = build_frontmatter(note.id, note.created);
+    let frontmatter = build_frontmatter(note);
     format!("{}{}", frontmatter, note.content)
 }
 
 pub fn deserialize_note(path: &Path) -> Result<Note, anyhow::Error> {
     let content = fs::read_to_string(path)?;
-    let (id, created, body) = parse_frontmatter(&content);
+    let (id, created, deleted, deleted_at, body) = parse_frontmatter(&content);
 
     let id = id.unwrap_or_else(Uuid::new_v4);
     let created = created.unwrap_or_else(Utc::now);
+    let deleted = deleted.unwrap_or(false);
+    let deleted_at = deleted_at;
 
     let title = extract_title(body);
     let modified = path
@@ -101,16 +123,20 @@ pub fn deserialize_note(path: &Path) -> Result<Note, anyhow::Error> {
         created,
         modified,
         path: path.to_path_buf(),
+        deleted,
+        deleted_at,
     })
 }
 
 /// Deserialize a note from raw content string (used when decrypting from sync).
 /// Returns the parsed Note without a valid path (caller must set it).
 pub fn deserialize_content(content: &str) -> Result<Note, anyhow::Error> {
-    let (id, created, body) = parse_frontmatter(content);
+    let (id, created, deleted, deleted_at, body) = parse_frontmatter(content);
 
     let id = id.unwrap_or_else(Uuid::new_v4);
     let created = created.unwrap_or_else(Utc::now);
+    let deleted = deleted.unwrap_or(false);
+    let deleted_at = deleted_at;
     let title = extract_title(body);
     let now = Utc::now();
 
@@ -120,7 +146,9 @@ pub fn deserialize_content(content: &str) -> Result<Note, anyhow::Error> {
         content: body.to_string(),
         created,
         modified: now,
-        path: PathBuf::new(), // caller must set this
+        path: PathBuf::new(),
+        deleted,
+        deleted_at,
     })
 }
 
@@ -158,6 +186,8 @@ pub fn create_note(folder: &Path, title: &str, content: &str) -> Result<Note, an
         created: now,
         modified: now,
         path: path.clone(),
+        deleted: false,
+        deleted_at: None,
     };
 
     let serialized = serialize_note(&note);
@@ -188,7 +218,29 @@ pub fn update_note(note: &mut Note) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-pub fn delete_note(note: &Note) -> Result<(), anyhow::Error> {
+pub fn soft_delete_note(note: &mut Note) -> Result<(), anyhow::Error> {
+    note.deleted = true;
+    note.deleted_at = Some(Utc::now());
+    note.modified = note.deleted_at.unwrap();
+
+    let serialized = serialize_note(note);
+    fs::write(&note.path, &serialized)?;
+
+    Ok(())
+}
+
+pub fn restore_note(note: &mut Note) -> Result<(), anyhow::Error> {
+    note.deleted = false;
+    note.deleted_at = None;
+    note.modified = Utc::now();
+
+    let serialized = serialize_note(note);
+    fs::write(&note.path, &serialized)?;
+
+    Ok(())
+}
+
+pub fn permanent_delete_note(note: &Note) -> Result<(), anyhow::Error> {
     if note.path.exists() {
         fs::remove_file(&note.path)?;
     }
@@ -208,13 +260,56 @@ pub fn list_notes(folder: &Path) -> Result<Vec<Note>, anyhow::Error> {
 
         if path.extension().and_then(|e| e.to_str()) == Some("md") {
             if let Ok(note) = deserialize_note(&path) {
-                notes.push(note);
+                if !note.deleted {
+                    notes.push(note);
+                }
             }
         }
     }
 
     notes.sort_by(|a, b| b.modified.cmp(&a.modified));
     Ok(notes)
+}
+
+pub fn list_deleted_notes(folder: &Path) -> Result<Vec<Note>, anyhow::Error> {
+    let mut notes = Vec::new();
+
+    if !folder.exists() {
+        return Ok(notes);
+    }
+
+    for entry in fs::read_dir(folder)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.extension().and_then(|e| e.to_str()) == Some("md") {
+            if let Ok(note) = deserialize_note(&path) {
+                if note.deleted {
+                    notes.push(note);
+                }
+            }
+        }
+    }
+
+    notes.sort_by(|a, b| {
+        b.deleted_at.unwrap_or(Utc::now()).cmp(&a.deleted_at.unwrap_or(Utc::now()))
+    });
+    Ok(notes)
+}
+
+pub fn cleanup_old_deleted_notes(folder: &Path, days: i64) -> Result<Vec<Note>, anyhow::Error> {
+    let deleted = list_deleted_notes(folder)?;
+    let cutoff = Utc::now() - chrono::Duration::days(days);
+    let to_remove: Vec<Note> = deleted
+        .into_iter()
+        .filter(|n| n.deleted_at.map_or(false, |d| d < cutoff))
+        .collect();
+
+    for note in &to_remove {
+        permanent_delete_note(note)?;
+    }
+
+    Ok(to_remove)
 }
 
 pub fn to_summary(note: &Note) -> NoteSummary {

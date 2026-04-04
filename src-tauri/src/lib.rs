@@ -142,7 +142,7 @@ fn delete_note_cmd(id: String, state: State<Arc<AppState>>) -> Result<(), String
     let folder = config.notes_folder.clone();
     drop(config);
 
-    let n = {
+    let mut n = {
         let index = state.search_index.lock().map_err(|e| e.to_string())?;
         index
             .get_note(&id, &folder)
@@ -150,7 +150,7 @@ fn delete_note_cmd(id: String, state: State<Arc<AppState>>) -> Result<(), String
             .ok_or_else(|| format!("Note not found: {}", id))?
     };
 
-    note::delete_note(&n).map_err(|e| e.to_string())?;
+    note::soft_delete_note(&mut n).map_err(|e| e.to_string())?;
 
     {
         let mut index = state.search_index.lock().map_err(|e| e.to_string())?;
@@ -158,6 +158,91 @@ fn delete_note_cmd(id: String, state: State<Arc<AppState>>) -> Result<(), String
     }
 
     Ok(())
+}
+
+#[tauri::command]
+fn restore_note_cmd(id: String, state: State<Arc<AppState>>) -> Result<NoteDto, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let folder = config.notes_folder.clone();
+    drop(config);
+
+    let mut n = {
+        let index = state.search_index.lock().map_err(|e| e.to_string())?;
+        index
+            .get_note(&id, &folder)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("Note not found: {}", id))?
+    };
+
+    note::restore_note(&mut n).map_err(|e| e.to_string())?;
+
+    {
+        let mut index = state.search_index.lock().map_err(|e| e.to_string())?;
+        index.insert(&folder, &n).map_err(|e| e.to_string())?;
+    }
+
+    Ok(NoteDto {
+        id: n.id.to_string(),
+        title: n.title,
+        content: n.content,
+        created: n.created.to_rfc3339(),
+        modified: n.modified.to_rfc3339(),
+    })
+}
+
+#[tauri::command]
+fn permanent_delete_cmd(id: String, state: State<Arc<AppState>>) -> Result<(), String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let folder = config.notes_folder.clone();
+    drop(config);
+
+    let n = note::deserialize_note(
+        &folder.join(format!("{}.md", id))
+    ).map_err(|e| e.to_string())?;
+
+    note::permanent_delete_note(&n).map_err(|e| e.to_string())?;
+
+    {
+        let mut index = state.search_index.lock().map_err(|e| e.to_string())?;
+        index.delete(&id).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn list_deleted_notes_cmd(state: State<Arc<AppState>>) -> Result<Vec<NoteDto>, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let folder = config.notes_folder.clone();
+    drop(config);
+
+    let deleted = note::list_deleted_notes(&folder).map_err(|e| e.to_string())?;
+
+    Ok(deleted.iter().map(|n| NoteDto {
+        id: n.id.to_string(),
+        title: n.title.clone(),
+        content: n.content.clone(),
+        created: n.created.to_rfc3339(),
+        modified: n.modified.to_rfc3339(),
+    }).collect())
+}
+
+#[tauri::command]
+fn cleanup_deleted_notes_cmd(state: State<Arc<AppState>>) -> Result<Vec<String>, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    let folder = config.notes_folder.clone();
+    drop(config);
+
+    let removed = note::cleanup_old_deleted_notes(&folder, 30).map_err(|e| e.to_string())?;
+
+    {
+        let mut index = state.search_index.lock().map_err(|e| e.to_string())?;
+        for n in &removed {
+            let _ = index.delete(&n.id.to_string());
+        }
+    }
+
+    Ok(removed.iter().map(|n| n.id.to_string()).collect())
 }
 
 #[tauri::command]
@@ -432,8 +517,14 @@ pub fn run() {
 
     std::fs::create_dir_all(&notes_folder).expect("Failed to create notes folder");
 
-    let search_index =
+    let mut search_index =
         index::SearchIndex::new(&notes_folder).expect("Failed to create search index");
+
+    // Auto-cleanup soft-deleted notes older than 30 days
+    let removed = note::cleanup_old_deleted_notes(&notes_folder, 30).unwrap_or_default();
+    for n in &removed {
+        let _ = search_index.delete(&n.id.to_string());
+    }
 
     let key_path = dirs::config_dir()
         .map(|d| d.join("nvage").join("key.txt"))
@@ -503,6 +594,10 @@ pub fn run() {
             create_note,
             update_note,
             delete_note_cmd,
+            restore_note_cmd,
+            permanent_delete_cmd,
+            list_deleted_notes_cmd,
+            cleanup_deleted_notes_cmd,
             set_notes_folder,
             get_notes_folder,
             get_app_version,

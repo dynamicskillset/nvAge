@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use crate::crypto;
@@ -32,12 +33,14 @@ pub fn find_git() -> Result<String, anyhow::Error> {
 /// Push cycle:
 /// 1. Clone or open the sync repo
 /// 2. For each changed note, encrypt it to `<uuid>.md.age` in the repo
-/// 3. Stage, commit, push
+/// 3. Remove orphaned .md.age files (permanently deleted locally)
+/// 4. Stage, commit, push
 ///
 /// Pull cycle:
 /// 1. Fetch and pull
-/// 2. Decrypt any `.md.age` files into the notes folder
-/// 3. Return conflict paths if local notes have also changed
+/// 2. Detect remote deletions and soft-delete matching local notes
+/// 3. Decrypt any `.md.age` files into the notes folder
+/// 4. Return conflict paths if local notes have also changed
 pub struct GitSyncProvider {
     /// Remote repo URL (e.g. `git@github.com:user/nvage-sync.git`)
     pub remote_url: String,
@@ -65,7 +68,6 @@ impl GitSyncProvider {
             if let Some(parent) = self.repo_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            // Clone must run from the parent directory, not the repo path
             let git_path = find_git()?;
             let output = Command::new(&git_path)
                 .args([
@@ -132,6 +134,37 @@ impl GitSyncProvider {
 
         Ok(changed)
     }
+
+    /// Collect all note IDs currently in the sync repo.
+    fn remote_note_ids(&self) -> HashSet<String> {
+        let mut ids = HashSet::new();
+        if let Ok(entries) = std::fs::read_dir(&self.repo_path) {
+            for entry in entries.flatten() {
+                let filename = entry.file_name();
+                let filename = filename.to_str().unwrap_or("");
+                if filename.ends_with(".md.age") && !filename.starts_with('.') {
+                    ids.insert(filename.trim_end_matches(".md.age").to_string());
+                }
+            }
+        }
+        ids
+    }
+
+    /// Collect all local note IDs (including soft-deleted).
+    fn all_local_note_ids(&self, notes_folder: &Path) -> HashSet<String> {
+        let mut ids = HashSet::new();
+        if let Ok(notes) = note::list_notes(notes_folder) {
+            for n in &notes {
+                ids.insert(n.id.to_string());
+            }
+        }
+        if let Ok(deleted) = note::list_deleted_notes(notes_folder) {
+            for n in &deleted {
+                ids.insert(n.id.to_string());
+            }
+        }
+        ids
+    }
 }
 
 impl SyncProvider for GitSyncProvider {
@@ -152,7 +185,24 @@ impl SyncProvider for GitSyncProvider {
         let public_key = Self::public_key(key_path)?;
         let changed = self.changed_local_notes(notes_folder)?;
 
-        if changed.is_empty() {
+        // Detect orphaned .md.age files in the sync repo that no longer
+        // have a matching local note — these were permanently deleted.
+        let local_ids = self.all_local_note_ids(notes_folder);
+        let mut removed_count = 0;
+        if self.repo_path.join(".git").exists() {
+            let remote_ids = self.remote_note_ids();
+            for id in &remote_ids {
+                if !local_ids.contains(id) {
+                    let age_path = self.repo_path.join(format!("{}.md.age", id));
+                    if age_path.exists() {
+                        std::fs::remove_file(&age_path)?;
+                        removed_count += 1;
+                    }
+                }
+            }
+        }
+
+        if changed.is_empty() && removed_count == 0 {
             return Ok(0);
         }
 
@@ -168,7 +218,6 @@ impl SyncProvider for GitSyncProvider {
         // Stage, commit, push
         self.git(&["add", "*.md.age"])?;
 
-        // Check if there is anything to commit
         let status = self.git(&["status", "--porcelain"])?;
         if String::from_utf8_lossy(&status.stdout).trim().is_empty() {
             return Ok(0);
@@ -177,7 +226,7 @@ impl SyncProvider for GitSyncProvider {
         self.git(&["commit", "-m", "Update notes"])?;
         self.git(&["push", "origin", &self.branch])?;
 
-        Ok(changed.len())
+        Ok(changed.len() + removed_count)
     }
 
     fn pull(
@@ -193,9 +242,37 @@ impl SyncProvider for GitSyncProvider {
 
         let secret_key = crypto::load_secret_key(key_path)?;
 
-        // Find all encrypted note files in the repo
+        // Collect remote note IDs after pull
+        let remote_ids = self.remote_note_ids();
+
+        // Soft-delete local notes that no longer exist on the remote.
+        // These were permanently deleted on another device.
+        let all_local_ids = self.all_local_note_ids(notes_folder);
+        let mut soft_deleted = 0;
+        for id in &all_local_ids {
+            if !remote_ids.contains(id) {
+                // Find the note on disk and soft-delete it
+                if let Ok(notes) = note::list_deleted_notes(notes_folder) {
+                    if let Some(n) = notes.iter().find(|n| n.id.to_string() == *id) {
+                        if !n.deleted {
+                            let mut note = n.clone();
+                            let _ = note::soft_delete_note(&mut note);
+                            soft_deleted += 1;
+                        }
+                    }
+                }
+                if let Ok(notes) = note::list_notes(notes_folder) {
+                    if let Some(n) = notes.iter().find(|n| n.id.to_string() == *id) {
+                        let mut note = n.clone();
+                        let _ = note::soft_delete_note(&mut note);
+                        soft_deleted += 1;
+                    }
+                }
+            }
+        }
+
+        // Decrypt all .md.age files from the repo
         let mut pulled = 0;
-        let mut pulled_ids = Vec::new();
         let mut conflicts = Vec::new();
 
         let entries = std::fs::read_dir(&self.repo_path)?;
@@ -210,12 +287,10 @@ impl SyncProvider for GitSyncProvider {
 
             let note_id = filename.trim_end_matches(".md.age");
 
-            // Check if we already have a local note with this id
             let local_exists = note::list_notes(notes_folder)?
                 .iter()
                 .any(|n| n.id.to_string() == note_id);
 
-            // Decrypt the file
             let ciphertext = std::fs::read(&path)?;
             let plaintext = crypto::decrypt(&secret_key, &ciphertext)
                 .map_err(|e| anyhow::anyhow!("Failed to decrypt note {}: {}", note_id, e))?;
@@ -228,7 +303,6 @@ impl SyncProvider for GitSyncProvider {
             };
 
             if local_exists {
-                // Save as conflict file
                 if let Some(stem) = dest_path.file_stem() {
                     let stem = stem.to_string_lossy();
                     let parent = dest_path.parent().unwrap();
@@ -253,14 +327,12 @@ impl SyncProvider for GitSyncProvider {
                     }
                 }
             } else {
-                // New note, just write it
                 std::fs::write(&dest_path, &plaintext)?;
             }
 
             pulled += 1;
-            pulled_ids.push(note_id.to_string());
         }
 
-        Ok((pulled, conflicts))
+        Ok((pulled + soft_deleted, conflicts))
     }
 }
