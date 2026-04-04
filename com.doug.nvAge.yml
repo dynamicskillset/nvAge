@@ -28,3 +28,8 @@ modules:
     sources:
       - type: dir
         path: .
+        skip:
+          - node_modules
+          - src-tauri/target
+          - dist
+          - .git

@@ -21,6 +21,7 @@ jobs:
           bundle: nvAge.flatpak
           manifest-path: com.doug.nvAge.yml
           cache-key: flatpak-builder-${{ github.sha }}
+          run-tests: false
 
       - name: Upload Flatpak
         uses: actions/upload-artifact@v4
