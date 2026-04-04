@@ -417,7 +417,7 @@
 
   <footer>
     <div class="container">
-      <span>v1.1.0 · <a href="https://github.com/dynamicskillset/nvAge/blob/main/LICENSE">AGPL-3.0</a> · <a href="https://github.com/dynamicskillset/nvAge">GitHub</a></span>
+      <span><span id="version">v1.1.0</span> · <a href="https://github.com/dynamicskillset/nvAge/blob/main/LICENSE">AGPL-3.0</a> · <a href="https://github.com/dynamicskillset/nvAge">GitHub</a></span>
       <span>Built by <a href="https://dynamicskillset.com">Dynamic Skillset</a></span>
     </div>
   </footer>
@@ -450,6 +450,16 @@
       document.documentElement.setAttribute('data-theme', 'light');
       updateIcon('light');
     }
+
+    // Fetch latest version from GitHub releases
+    fetch('https://api.github.com/repos/dynamicskillset/nvage/releases/latest')
+      .then(r => r.json())
+      .then(data => {
+        if (data.tag_name) {
+          document.getElementById('version').textContent = data.tag_name;
+        }
+      })
+      .catch(() => {});
   </script>
 </body>
 </html>
