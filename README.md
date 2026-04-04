@@ -4,6 +4,8 @@
 
 A fast, private notes app for your desktop. Type to search, press Enter to create. Your notes live as plain text files on your own machine — no accounts, no cloud, no one else reading them.
 
+![nvAge screenshot](/screenshot.png)
+
 ## What It Does
 
 Open the app and start typing. Your notes appear instantly as you type. Press Enter to open one, or to create a new note if nothing matches. That's the whole thing.

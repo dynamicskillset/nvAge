@@ -115,46 +115,72 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 // ── Editor Theme Builder ──
-function buildEditorTheme() {
-  const style = getComputedStyle(document.documentElement);
-  const v = (name: string) => style.getPropertyValue(name).trim();
+const editorThemes = {
+  dark: {
+    bg: "#2e3440",
+    text: "#eceff4",
+    cursor: "#eceff4",
+    selection: "#5e81ac",
+    heading: "#eceff4",
+    link: "#88c0d0",
+    emphasis: "#d8dee9",
+    monospace: "#d8dee9",
+    strikethrough: "#4c566a",
+    atom: "#4c566a",
+  },
+  light: {
+    bg: "#eceff4",
+    text: "#2e3440",
+    cursor: "#2e3440",
+    selection: "#88c0d0",
+    heading: "#2e3440",
+    link: "#5e81ac",
+    emphasis: "#3b4252",
+    monospace: "#3b4252",
+    strikethrough: "#4c566a",
+    atom: "#4c566a",
+  },
+};
+
+function buildEditorTheme(theme: "dark" | "light") {
+  const c = editorThemes[theme];
 
   const highlightStyle = HighlightStyle.define([
-    { tag: t.heading, color: v("--editor-heading"), fontWeight: "bold" },
-    { tag: t.strong, color: v("--editor-heading"), fontWeight: "bold" },
-    { tag: t.emphasis, color: v("--editor-emphasis"), fontStyle: "italic" },
-    { tag: t.link, color: v("--editor-link") },
-    { tag: t.url, color: v("--editor-link") },
-    { tag: t.monospace, color: v("--editor-monospace"), fontFamily: "monospace" },
-    { tag: t.strikethrough, color: v("--editor-strikethrough"), textDecoration: "line-through" },
-    { tag: t.atom, color: v("--editor-atom") },
+    { tag: t.heading, color: c.heading, fontWeight: "bold" },
+    { tag: t.strong, color: c.heading, fontWeight: "bold" },
+    { tag: t.emphasis, color: c.emphasis, fontStyle: "italic" },
+    { tag: t.link, color: c.link },
+    { tag: t.url, color: c.link },
+    { tag: t.monospace, color: c.monospace, fontFamily: "monospace" },
+    { tag: t.strikethrough, color: c.strikethrough, textDecoration: "line-through" },
+    { tag: t.atom, color: c.atom },
   ]);
 
   return [
     EditorView.theme({
       "&": {
-        backgroundColor: `${v("--editor-bg")} !important`,
-        color: v("--editor-text"),
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        backgroundColor: `${c.bg} !important`,
+        color: c.text,
+        fontFamily: 'system-ui, sans-serif',
         fontSize: "15px",
         lineHeight: "1.6",
       },
       ".cm-scroller": {
         padding: "0",
-        backgroundColor: `${v("--editor-bg")} !important`,
+        backgroundColor: `${c.bg} !important`,
       },
       ".cm-content": {
         padding: "16px",
-        caretColor: v("--editor-cursor"),
-        backgroundColor: `${v("--editor-bg")} !important`,
-        color: v("--editor-text"),
+        caretColor: c.cursor,
+        backgroundColor: `${c.bg} !important`,
+        color: c.text,
       },
       ".cm-cursor": {
-        borderLeftColor: v("--editor-cursor"),
+        borderLeftColor: c.cursor,
       },
       ".cm-gutters": {
         display: "none",
-        backgroundColor: `${v("--editor-bg")} !important`,
+        backgroundColor: `${c.bg} !important`,
       },
       ".cm-activeLine": {
         backgroundColor: "transparent !important",
@@ -163,10 +189,10 @@ function buildEditorTheme() {
         backgroundColor: "transparent !important",
       },
       ".cm-selectionBackground": {
-        background: `${v("--editor-selection")} !important`,
+        background: `${c.selection} !important`,
       },
       ".cm-line": {
-        color: v("--editor-text"),
+        color: c.text,
       },
     }),
     syntaxHighlighting(highlightStyle),
@@ -297,7 +323,7 @@ function App() {
   const showEditorView = !isNarrow || isEditing;
 
   // Build editor theme from current CSS variables — memoized on theme
-  const editorTheme = useMemo(() => buildEditorTheme(), [theme]);
+  const editorTheme = useMemo(() => buildEditorTheme(theme), [theme]);
 
   // Memoized display title for new notes
   const displayTitle = useMemo(
@@ -659,6 +685,27 @@ function App() {
       setSyncStep("done");
     }
   }, [fetchSyncStatus, syncStatus]);
+
+  // ── Auto sync every 5 minutes when configured ──
+  useEffect(() => {
+    if (syncStatus === "not_configured") return;
+
+    const interval = setInterval(async () => {
+      if (syncLoading) return;
+      try {
+        const res = await invoke<{ status: string; message: string }>("sync_notes", { direction: "full" });
+        setSyncStatus(res.status);
+        setSyncMessage(res.message);
+        if (res.status === "idle" || res.status === "conflict") {
+          await search(query);
+        }
+      } catch {
+        // Silently fail — user can manually sync if needed
+      }
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [syncStatus, syncLoading, query, search]);
 
   // ── Notes folder ──
 
