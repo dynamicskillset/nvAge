@@ -256,8 +256,6 @@ function App() {
   const [deletedNote, setDeletedNote] = useState<Note | null>(null);
   const [appVersion, setAppVersion] = useState("");
   const [undoTimeout, setUndoTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [lastSaved, setLastSaved] = useState<number>(0);
-  const [lastSynced, setLastSynced] = useState<number>(0);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem("nvage-theme");
     if (saved === "light" || saved === "dark") return saved;
@@ -413,7 +411,6 @@ function App() {
         content,
       });
       setActiveNote(updated);
-      setLastSaved(Date.now());
       await search(query);
       setError(null);
     } catch (e) {
@@ -670,7 +667,6 @@ function App() {
       setSyncStatus(res.status);
       setSyncMessage(res.message);
       if (direction === "pull" || direction === "full") {
-        setLastSynced(Date.now());
         await search(query);
       }
     } catch (e) {
@@ -701,7 +697,6 @@ function App() {
         setSyncStatus(res.status);
         setSyncMessage(res.message);
         if (res.status === "idle" || res.status === "conflict") {
-          setLastSynced(Date.now());
           await search(query);
         }
       } catch {
@@ -1059,17 +1054,6 @@ function App() {
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* ── Sync status indicator (bottom corner) ── */}
-        {syncStatus !== "not_configured" && (
-          <div className="sync-indicator" title={
-            lastSaved <= lastSynced
-              ? "All notes synced"
-              : "Unsynced changes pending"
-          }>
-            <span className={`sync-indicator-dot ${lastSaved <= lastSynced ? "synced" : "unsynced"}`} />
           </div>
         )}
       </div>
