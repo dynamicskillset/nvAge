@@ -8,9 +8,9 @@ A local-first, cross-platform desktop notes app in the tradition of Notational V
 
 Full product spec: `nvage-prd.md`
 
-## Current Status: v0.2.0 — Hard Deletes, Sync Deletion Propagation, OG Image
+## Current Status: v0.3.0 — Audit Fixes, Sync Pull Counting, Touch Targets
 
-Milestones 1, 2, and 3 are complete. Encrypted sync has been tested end-to-end. v0.2.0 simplifies deletion to hard deletes (delete means delete), with `git add -A` propagating deletions across devices via sync. Also adds an OG image for GitHub Pages.
+Milestones 1, 2, and 3 are complete. v0.3.0 is a quality pass following a technical audit: fixes sync pull counting (now uses `git diff` to detect actual changes), adds missing CSS for sync config display, replaces hard-coded hex with CSS variables, improves touch targets, and cleans up compiler warnings.
 
 ---
 
@@ -29,7 +29,7 @@ Milestones 1, 2, and 3 are complete. Encrypted sync has been tested end-to-end. 
 
 | File | Purpose |
 |---|---|
-| `lib.rs` | Tauri app core: `AppState` (config + search index + sync provider + key path via `Arc<Mutex<>>`), 12 IPC commands (7 notes + 5 sync), filesystem watcher setup, incremental index updates |
+| `lib.rs` | Tauri app core: `AppState` (config + search index + sync provider + key path via `Arc<Mutex<>>`), 15 IPC commands (7 notes + 6 sync + 1 config + 1 version), filesystem watcher setup, incremental index updates, sync config persistence |
 | `config.rs` | App config: loads/saves JSON at `~/.config/nvage/config.json` with `notes_folder` path |
 | `note.rs` | Note model: `Note` struct, YAML frontmatter parsing/serialization, slug-based filenames, CRUD file I/O, `deserialize_content` for sync |
 | `index.rs` | SQLite search index: database at `.nvage/search.db`, incremental updates, LIKE-based substring search, rebuild/insert/delete/search operations |
@@ -58,9 +58,10 @@ Milestones 1, 2, and 3 are complete. Encrypted sync has been tested end-to-end. 
 | `generate_sync_key()` | Frontend → Backend | Generate new `age` keypair, save to `~/.config/nvage/key.txt` |
 | `import_sync_key(key_str)` | Frontend → Backend | Import existing `age` key from string |
 | `configure_sync(remote_url, branch)` | Frontend → Backend | Set up Git sync provider with remote repo URL |
-| `sync_notes(direction)` | Frontend → Backend | Run sync: `push`, `pull`, or `full` cycle |
+| `sync_notes(direction)` | Frontend → Backend | Run sync: `push`, `pull`, or `full` cycle — returns "All notes are up to date" when nothing changed |
 | `get_sync_status()` | Frontend → Backend | Get current sync status (idle, syncing, error, conflict, not_configured) |
 | `validate_sync_setup(remote_url)` | Frontend → Backend | Validate Git installed, key exists, remote reachable |
+| `get_sync_config()` | Frontend → Backend | Get persisted sync config (remote URL + branch) |
 
 ---
 
@@ -136,6 +137,10 @@ Milestones 1, 2, and 3 are complete. Encrypted sync has been tested end-to-end. 
 11. **Soft-deleted notes reappearing after sync** — soft-delete approach was fundamentally broken; replaced with hard deletes. `git add -A` stages deletions so removed `.md.age` files are committed to the remote, and pull sees they're gone.
 12. **File watcher re-indexing deleted notes** — `update_files` already handles missing files by removing them from the index.
 13. **Duplicate CSS rules** — bin component styles were duplicated (~150 lines); all bin code removed.
+14. **Sync pull always counted all notes** — `pull` iterated every `.md.age` file regardless of whether it changed; fixed by comparing HEAD before/after with `git diff --name-only`.
+15. **Missing CSS for sync-config classes** — `sync-config-info`, `sync-config-row`, `sync-config-label`, `sync-config-value` used in JSX with no styles defined.
+16. **Hard-coded hex in sync-dot indicators** — 4 Aurora hex values bypassed the CSS variable token system.
+17. **Undersized touch targets on desktop** — new-note-btn (32px), delete-btn, sync-close-btn all below comfortable click targets.
 
 ---
 
@@ -177,8 +182,8 @@ Milestones 1, 2, and 3 are complete. Encrypted sync has been tested end-to-end. 
 
 - **Git** — `https://github.com/dynamicskillset/nvAge`
 - **Kin** — semantic VCS at `.kin/`
-- Latest git commit: `172a909` — ":recycle: remove Flatpak CI — document local build instructions instead"
-- Latest kin commit: `8ae4300e` — same
+- Latest git commit: `55637c8` — "♻️ fix pull counting, persist sync config, clean dead code"
+- Latest kin commit: pending
 - Total entities tracked: 174
 
 ---
