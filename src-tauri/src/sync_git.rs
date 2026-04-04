@@ -150,19 +150,32 @@ impl GitSyncProvider {
         ids
     }
 
-    /// Collect all local note IDs (including soft-deleted).
-    fn all_local_note_ids(&self, notes_folder: &Path) -> HashSet<String> {
+    /// Collect active (non-deleted) local note IDs.
+    fn active_local_note_ids(&self, notes_folder: &Path) -> HashSet<String> {
         let mut ids = HashSet::new();
         if let Ok(notes) = note::list_notes(notes_folder) {
             for n in &notes {
                 ids.insert(n.id.to_string());
             }
         }
+        ids
+    }
+
+    /// Collect soft-deleted local note IDs.
+    fn deleted_local_note_ids(&self, notes_folder: &Path) -> HashSet<String> {
+        let mut ids = HashSet::new();
         if let Ok(deleted) = note::list_deleted_notes(notes_folder) {
             for n in &deleted {
                 ids.insert(n.id.to_string());
             }
         }
+        ids
+    }
+
+    /// Collect all local note IDs (active + soft-deleted).
+    fn all_local_note_ids(&self, notes_folder: &Path) -> HashSet<String> {
+        let mut ids = self.active_local_note_ids(notes_folder);
+        ids.extend(self.deleted_local_note_ids(notes_folder));
         ids
     }
 }
@@ -186,13 +199,13 @@ impl SyncProvider for GitSyncProvider {
         let changed = self.changed_local_notes(notes_folder)?;
 
         // Detect orphaned .md.age files in the sync repo that no longer
-        // have a matching local note — these were permanently deleted.
-        let local_ids = self.all_local_note_ids(notes_folder);
+        // have a matching active local note — permanently deleted or soft-deleted.
+        let active_ids = self.active_local_note_ids(notes_folder);
         let mut removed_count = 0;
         if self.repo_path.join(".git").exists() {
             let remote_ids = self.remote_note_ids();
             for id in &remote_ids {
-                if !local_ids.contains(id) {
+                if !active_ids.contains(id) {
                     let age_path = self.repo_path.join(format!("{}.md.age", id));
                     if age_path.exists() {
                         std::fs::remove_file(&age_path)?;
