@@ -1,6 +1,6 @@
 # nvAge — Progress Report
 
-**Last updated:** 2026-04-03
+**Last updated:** 2026-04-04
 
 ## What nvAge Is
 
@@ -173,9 +173,9 @@ Milestones 1, 2, and 3 are all complete. Encrypted sync has been tested end-to-e
 
 - **Git** — `https://github.com/dynamicskillset/nvAge`
 - **Kin** — semantic VCS at `.kin/`
-- Latest git commit: `0d329bb` — ":bug: fix git clone running from non-existent repo directory"
-- Latest kin commit: `073f1203` — same
-- Total entities tracked: 163
+- Latest git commit: `172a909` — ":recycle: remove Flatpak CI — document local build instructions instead"
+- Latest kin commit: `8ae4300e` — same
+- Total entities tracked: 174
 
 ---
 
