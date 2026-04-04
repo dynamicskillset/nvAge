@@ -1265,6 +1265,10 @@ function App() {
                   </a>, then copy the URL below the repo name.
                 </div>
 
+                <div className="sync-tip">
+                  <strong>Can't reach the remote repo?</strong> If you connect to GitHub via SSH, use the SSH format: <code>git@github.com:yourname/your-repo.git</code>
+                </div>
+
                 <div className="sync-import">
                   <label htmlFor="sync-remote-input" className="sync-label-text">Repository URL</label>
                   <input
@@ -1273,7 +1277,7 @@ function App() {
                     type="text"
                     value={syncRemoteUrl}
                     onChange={(e) => setSyncRemoteUrl(e.target.value)}
-                    placeholder="https://github.com/yourname/your-repo.git"
+                    placeholder="git@github.com:yourname/your-repo.git"
                   />
 
                   <label htmlFor="sync-branch-input" className="sync-label-text">Branch</label>
