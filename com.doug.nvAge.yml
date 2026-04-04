@@ -1,0 +1,30 @@
+app-id: com.doug.nvAge
+runtime: org.gnome.Platform
+runtime-version: '46'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node22
+command: nvage
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --share=network
+  - --filesystem=home
+  - --filesystem=xdg-config/nvage:create
+  - --filesystem=xdg-cache/nvage:create
+modules:
+  - name: nvage
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/node22/bin
+      env:
+        NPM_CONFIG_CACHE: /run/build/nvage/npm-cache
+    build-commands:
+      - npm install
+      - npm run tauri build
+      - install -Dm755 src-tauri/target/release/nvage /app/bin/nvage
+    sources:
+      - type: dir
+        path: .
