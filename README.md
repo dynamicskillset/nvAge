@@ -93,3 +93,7 @@ This project uses [Pride Versioning](https://pridever.org/) (`PROUD.DEFAULT.SHAM
 ## Licence
 
 AGPL-3.0 — see [LICENSE](LICENSE) for details.
+
+## Built With
+
+This app was developed in [OpenCode](https://opencode.ai) using [OpenRouter](https://openrouter.ai) and [Qwen3.6 Plus](https://openrouter.ai/qwen/qwen3.6-plus). The initial product requirements document was developed with [Claude Opus 4.6](https://www.anthropic.com/claude).
