@@ -347,6 +347,8 @@
   height: 100%;
   overflow: hidden;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .editor-header {
@@ -508,6 +510,18 @@
 .cm-scroller {
   overflow: auto !important;
   min-height: 0;
+}
+
+.cm-content {
+  max-width: 100% !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+}
+
+.cm-line {
+  max-width: 100% !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
 }
 
 .cm-editor.cm-focused {
