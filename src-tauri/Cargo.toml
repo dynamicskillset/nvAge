@@ -1,6 +1,6 @@
 [package]
 name = "nvage"
-version = "0.2.0"
+version = "0.3.0"
 description = "A local-first, cross-platform notes app in the tradition of Notational Velocity and nvALT."
 authors = ["you"]
 edition = "2021"

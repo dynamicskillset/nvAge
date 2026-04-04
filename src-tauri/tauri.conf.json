@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "nvAge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "com.doug.nvage",
   "build": {
     "beforeDevCommand": "npm run dev",
