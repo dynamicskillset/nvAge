@@ -8,9 +8,9 @@ A local-first, cross-platform desktop notes app in the tradition of Notational V
 
 Full product spec: `nvage-prd.md`
 
-## Current Status: v0.2.0 — Soft-Delete Bin, Sync Deletion Propagation, OG Image
+## Current Status: v0.2.0 — Hard Deletes, Sync Deletion Propagation, OG Image
 
-Milestones 1, 2, and 3 are complete. Encrypted sync has been tested end-to-end. v0.2.0 adds a soft-delete Bin with 30-day auto-cleanup, proper sync deletion propagation, and an OG image for GitHub Pages.
+Milestones 1, 2, and 3 are complete. Encrypted sync has been tested end-to-end. v0.2.0 simplifies deletion to hard deletes (delete means delete), with `git add -A` propagating deletions across devices via sync. Also adds an OG image for GitHub Pages.
 
 ---
 
@@ -48,11 +48,7 @@ Milestones 1, 2, and 3 are complete. Encrypted sync has been tested end-to-end. 
 | `get_note(id)` | Frontend → Backend | Load a single note by UUID |
 | `create_note(title, content)` | Frontend → Backend | Create new note with frontmatter |
 | `update_note(id, content)` | Frontend → Backend | Update note content, rename file if title changed |
-| `delete_note_cmd(id)` | Frontend → Backend | Soft-delete note (sets `deleted: true` in frontmatter) |
-| `restore_note_cmd(id)` | Frontend → Backend | Restore soft-deleted note (removes `deleted` flag) |
-| `permanent_delete_cmd(id)` | Frontend → Backend | Permanently remove note file and index entry |
-| `list_deleted_notes_cmd()` | Frontend → Backend | List all soft-deleted notes (for Bin view) |
-| `cleanup_deleted_notes_cmd()` | Frontend → Backend | Auto-purge soft-deleted notes older than 30 days |
+| `delete_note_cmd(id)` | Frontend → Backend | Hard-delete note (removes file and index entry) |
 | `set_notes_folder(folder)` | Frontend → Backend | Change notes directory, rebuild index |
 | `get_notes_folder()` | Frontend → Backend | Get current notes folder path |
 
@@ -137,9 +133,9 @@ Milestones 1, 2, and 3 are complete. Encrypted sync has been tested end-to-end. 
 8. **FTS5 dead code** — removed unused virtual table and sync triggers
 9. **Regex state bug in search highlighting** — `regex.test()` is stateful, replaced with string comparison
 10. **Theme toggle icons reversed** — sun/moon now correctly reflect current state
-11. **Soft-deleted notes reappearing after sync** — `git add *.md.age` doesn't stage deletions; changed to `git add -A -- *.md.age`. Also fixed `index.rs:insert` to skip soft-deleted notes and `sync_git.rs:push` to remove `.md.age` files for deleted notes
-12. **File watcher re-indexing deleted notes** — `index.rs:insert` now removes soft-deleted notes from the search index instead of re-inserting them
-13. **Duplicate CSS rules** — bin component styles were duplicated (~150 lines)
+11. **Soft-deleted notes reappearing after sync** — soft-delete approach was fundamentally broken; replaced with hard deletes. `git add -A` stages deletions so removed `.md.age` files are committed to the remote, and pull sees they're gone.
+12. **File watcher re-indexing deleted notes** — `update_files` already handles missing files by removing them from the index.
+13. **Duplicate CSS rules** — bin component styles were duplicated (~150 lines); all bin code removed.
 
 ---
 

@@ -76,11 +76,6 @@ impl SearchIndex {
     }
 
     pub fn insert(&mut self, notes_folder: &Path, note: &note::Note) -> Result<(), anyhow::Error> {
-        if note.deleted {
-            self.delete(&note.id.to_string())?;
-            return Ok(());
-        }
-
         let relative_path = note
             .path
             .strip_prefix(notes_folder)
@@ -160,14 +155,9 @@ impl SearchIndex {
     pub fn get_note(&self, id: &str, notes_folder: &Path) -> Result<Option<note::Note>, anyhow::Error> {
         let note_path = notes_folder.join(format!("{}.md", id));
         if note_path.exists() {
-            let n = note::deserialize_note(&note_path)?;
-            if n.deleted {
-                return Ok(None);
-            }
-            return Ok(Some(n));
+            return Ok(Some(note::deserialize_note(&note_path)?));
         }
 
-        // Try finding by id in the index, then resolve the actual file
         let mut stmt = self.conn.prepare(
             "SELECT path FROM notes WHERE id = ?1"
         )?;
@@ -176,21 +166,16 @@ impl SearchIndex {
         if let Some(path_str) = path_str {
             let full_path = notes_folder.join(&path_str);
             if full_path.exists() {
-                let n = note::deserialize_note(&full_path)?;
-                if n.deleted {
-                    return Ok(None);
-                }
-                return Ok(Some(n));
+                return Ok(Some(note::deserialize_note(&full_path)?));
             }
         }
 
-        // Fall back: scan all notes, skip soft-deleted
         for entry in std::fs::read_dir(notes_folder)? {
             let entry = entry?;
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) == Some("md") {
                 if let Ok(n) = note::deserialize_note(&path) {
-                    if n.id.to_string() == id && !n.deleted {
+                    if n.id.to_string() == id {
                         return Ok(Some(n));
                     }
                 }
