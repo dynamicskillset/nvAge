@@ -1,6 +1,6 @@
 # nvAge
 
-![nvAge icon](/icon.svg)
+<img src="/icon.svg" alt="nvAge icon" width="64" height="64">
 
 A fast, private notes app for your desktop. Type to search, press Enter to create. Your notes live as plain text files on your own machine — no accounts, no cloud, no one else reading them.
 
