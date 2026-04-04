@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import CodeMirror from "@uiw/react-codemirror";
 import { markdown } from "@codemirror/lang-markdown";
@@ -176,8 +176,8 @@ function friendlyError(raw: unknown, action: string): string {
   if (clean.includes("Failed to create search index")) return "Could not create the search index.";
   if (clean.includes("Failed to create filesystem watcher")) return "Could not watch your notes folder for changes.";
 
-  // Default: show the clean message
-  return `${action}: ${clean}`;
+  // Catch-all: show generic message, hide raw error
+  return `${action} failed. Please try again.`;
 }
 
 interface SearchResult {
@@ -229,7 +229,6 @@ function App() {
   const [syncKey, setSyncKey] = useState("");
   const [generatedKey, setGeneratedKey] = useState("");
   const [keyCopied, setKeyCopied] = useState(false);
-  const [syncPublicKey, setSyncPublicKey] = useState("");
   const [syncRemoteUrl, setSyncRemoteUrl] = useState("");
   const [syncBranch, setSyncBranch] = useState("main");
   const [syncStatus, setSyncStatus] = useState<string>("not_configured");
@@ -281,11 +280,22 @@ function App() {
   const showSidebarView = !isNarrow || !isEditing;
   const showEditorView = !isNarrow || isEditing;
 
-  // Build editor theme from current CSS variables (rebuilds on theme change)
-  const editorTheme = buildEditorTheme();
+  // Build editor theme from current CSS variables — memoized on theme
+  const editorTheme = useMemo(() => buildEditorTheme(), [theme]);
 
-  // Derive display title client-side for new notes
-  const displayTitle = activeNote?.title || (editorContent ? editorContent.split("\n")[0].replace(/^#\s*/, "").trim() : "New note");
+  // Memoized display title for new notes
+  const displayTitle = useMemo(
+    () => activeNote?.title || (editorContent ? editorContent.split("\n")[0].replace(/^#\s*/, "").trim() : "New note"),
+    [activeNote?.title, editorContent]
+  );
+
+  // Memoized relative time formatter for all results
+  const formattedResults = useMemo(() => {
+    return results.map((r) => ({
+      ...r,
+      formattedTime: formatRelativeTime(r.modified),
+    }));
+  }, [results]);
 
   const search = useCallback(async (q: string) => {
     try {
@@ -324,13 +334,6 @@ function App() {
       setError(friendlyError(e, "Failed to open note"));
     }
   }, []);
-
-  // On narrow screens, hide sidebar when a note is opened
-  useEffect(() => {
-    if (isNarrow && isEditing) {
-      // sidebar auto-hides via showSidebarView
-    }
-  }, [isNarrow, isEditing]);
 
   const createNote = useCallback(async (title: string, content: string) => {
     try {
@@ -565,7 +568,6 @@ function App() {
     setKeyCopied(false);
     try {
       const res = await invoke<{ public_key: string; secret_key: string }>("generate_sync_key");
-      setSyncPublicKey(res.public_key);
       setGeneratedKey(res.secret_key);
     } catch (e) {
       setSyncError(friendlyError(e, "Failed to generate key"));
@@ -588,8 +590,7 @@ function App() {
     setSyncLoading(true);
     setSyncError(null);
     try {
-      const res = await invoke<{ public_key: string; secret_key: string }>("import_sync_key", { keyStr: syncKey.trim() });
-      setSyncPublicKey(res.public_key);
+      await invoke("import_sync_key", { keyStr: syncKey.trim() });
       setSyncStep("remote");
     } catch (e) {
       setSyncError(friendlyError(e, "Invalid key"));
@@ -697,7 +698,7 @@ function App() {
             </div>
           ) : (
             <>
-          {results.map((result, idx) => (
+          {formattedResults.map((result, idx) => (
             <div
               key={result.id}
               data-note-id={result.id}
@@ -719,7 +720,7 @@ function App() {
                 {result.preview ? highlightText(result.preview, query) : "Empty note"}
               </div>
               <div className="note-item-time">
-                {formatRelativeTime(result.modified)}
+                {result.formattedTime}
               </div>
             </div>
           ))}
@@ -796,6 +797,14 @@ function App() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
+          </button>
+          <button
+            className="help-btn"
+            onClick={() => setShowShortcuts(true)}
+            aria-label="Show keyboard shortcuts"
+            title="Keyboard shortcuts"
+          >
+            ?
           </button>
           <span className="version-label">{appVersion ? `v${appVersion}` : ""}</span>
         </div>
@@ -1089,13 +1098,6 @@ function App() {
                 <div className="sync-step-desc">
                   Your notes will be encrypted and stored in a Git repository. If you use GitHub, create a <strong>private</strong> repo first.
                 </div>
-
-                {syncPublicKey && (
-                  <div className="sync-key-display">
-                    <span className="sync-key-label">Your public key (for other devices)</span>
-                    <code className="sync-key-code">{syncPublicKey}</code>
-                  </div>
-                )}
 
                 <div className="sync-tip">
                   <strong>New to GitHub?</strong>{" "}
