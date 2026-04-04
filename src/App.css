@@ -499,6 +499,11 @@
 
 .cm-editor {
   height: 100% !important;
+  overflow: hidden !important;
+}
+
+.cm-scroller {
+  overflow: auto !important;
 }
 
 .cm-editor.cm-focused {
