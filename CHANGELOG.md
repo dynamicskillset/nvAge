@@ -4,6 +4,27 @@ All notable changes to nvAge are documented in this file.
 
 Versioning follows [Pride Versioning](https://pridever.org/) (`PROUD.DEFAULT.SHAME`).
 
+## [1.1.0] — 2026-04-04
+
+### Proud
+
+- AppImage builds for Linux — works on Fedora Silverblue, Ubuntu, Debian, Arch, and more
+- Auto-sync every 5 minutes when sync is configured
+- Update check on startup — queries GitHub releases and shows a badge when a newer version is available
+- Built app binaries published as GitHub releases on tag push
+
+### Default
+
+- Note text now wraps within the window bounds instead of flowing past the edge
+- Editor theme correctly switches between dark and light modes
+- CI builds on Ubuntu, Windows, and macOS with Node.js 22
+
+### Shame
+
+- Cross-compilation targets removed from CI — was failing due to missing toolchains
+- Redundant sync indicator removed from editor pane
+- Screenshot updated in README
+
 ## [1.0.0] — 2026-04-03
 
 First release. All three milestones complete.
