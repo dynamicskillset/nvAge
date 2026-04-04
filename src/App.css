@@ -419,8 +419,9 @@
 }
 
 .app-logo {
+  display: block;
+  margin: 0 auto 12px;
   color: var(--text-primary);
-  margin-bottom: 12px;
 }
 
 .hint {

@@ -1,5 +1,7 @@
 # nvAge
 
+![nvAge icon](/icon.svg)
+
 A fast, private notes app for your desktop. Type to search, press Enter to create. Your notes live as plain text files on your own machine — no accounts, no cloud, no one else reading them.
 
 ## What It Does
