@@ -255,11 +255,6 @@ function App() {
   const [folderInput, setFolderInput] = useState("");
   const [deletedNote, setDeletedNote] = useState<Note | null>(null);
   const [appVersion, setAppVersion] = useState("");
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [latestVersion, setLatestVersion] = useState("");
-  const [showBin, setShowBin] = useState(false);
-  const [binNotes, setBinNotes] = useState<Note[]>([]);
-  const [binVisible, setBinVisible] = useState(false);
   const [showBin, setShowBin] = useState(false);
   const [binNotes, setBinNotes] = useState<Note[]>([]);
   const [binVisible, setBinVisible] = useState(false);
@@ -503,9 +498,8 @@ function App() {
         .then((data) => {
           if (data.tag_name) {
             const latest = data.tag_name.replace(/^v/, "");
-            setLatestVersion(latest);
             if (latest !== v) {
-              setUpdateAvailable(true);
+              // Update available — handled by external link in settings
             }
           }
         })
@@ -773,49 +767,6 @@ function App() {
     }
   }, [binNotes.length]);
 
-  // ── Bin ──
-
-  const loadBin = useCallback(async () => {
-    try {
-      const notes = await invoke<Note[]>("list_deleted_notes_cmd");
-      setBinNotes(notes);
-      setBinVisible(notes.length > 0);
-    } catch {
-      setBinNotes([]);
-      setBinVisible(false);
-    }
-  }, []);
-
-  // Show bin button after a few seconds, then load bin contents
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setBinVisible(true);
-      loadBin();
-    }, 3000);
-    return () => clearTimeout(timeout);
-  }, [loadBin]);
-
-  const handleRestoreNote = useCallback(async (id: string) => {
-    try {
-      await invoke("restore_note_cmd", { id });
-      setBinNotes(prev => prev.filter(n => n.id !== id));
-      if (binNotes.length <= 1) setBinVisible(false);
-      await search(query);
-    } catch (e) {
-      setError(friendlyError(e, "Failed to restore note"));
-    }
-  }, [query, search, binNotes.length]);
-
-  const handlePermanentDelete = useCallback(async (id: string) => {
-    try {
-      await invoke("permanent_delete_cmd", { id });
-      setBinNotes(prev => prev.filter(n => n.id !== id));
-      if (binNotes.length <= 1) setBinVisible(false);
-    } catch (e) {
-      setError(friendlyError(e, "Failed to delete note"));
-    }
-  }, [binNotes.length]);
-
   // ── Notes folder ──
 
   const handleChangeFolder = useCallback(async () => {
@@ -911,9 +862,7 @@ function App() {
                 ))
               )}
             </>
-          ) : (
-          <>
-          {isLoading ? (
+          ) : isLoading ? (
             <div className="empty-state">
               <div className="empty-state-hint">Loading...</div>
             </div>
