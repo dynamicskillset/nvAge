@@ -72,6 +72,24 @@ npm run tauri build
 ./src-tauri/target/debug/nvage
 ```
 
+### Flatpak (Fedora Silverblue)
+
+Flatpak builds are done locally rather than in CI due to WebKitGTK requirements in the build container.
+
+```bash
+# Install flatpak-builder
+rpm-ostree install flatpak-builder
+systemctl reboot
+
+# Build and install
+cd nvAge
+flatpak-builder --force-clean --install-deps-from=flathub build-dir com.doug.nvAge.yml
+flatpak-builder --run build-dir com.doug.nvAge.yml nvage
+
+# Create a distributable bundle
+flatpak build-bundle build-dir nvAge.flatpak com.doug.nvAge
+```
+
 ### Configuration
 
 Config lives at `~/.config/nvage/config.json`:
