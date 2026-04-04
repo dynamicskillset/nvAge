@@ -901,6 +901,15 @@ function App() {
         ) : (
           <div className="editor-empty">
             <div className="editor-empty-text">
+              <svg className="app-logo" width="48" height="48" viewBox="0 0 32 32" fill="none">
+                <rect x="7" y="4" width="18" height="24" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <line x1="11" y1="10" x2="21" y2="10"/>
+                  <line x1="11" y1="14" x2="19" y2="14"/>
+                  <line x1="11" y1="18" x2="17" y2="18"/>
+                  <line x1="11" y1="22" x2="15" y2="22"/>
+                </g>
+              </svg>
               <div className="logo">nvAge</div>
               <div className="hint">Type to search, Enter to create</div>
               <div className="shortcuts">
