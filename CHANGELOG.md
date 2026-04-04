@@ -4,6 +4,19 @@ All notable changes to nvAge are documented in this file.
 
 Versioning follows [Pride Versioning](https://pridever.org/) (`PROUD.DEFAULT.SHAME`).
 
+## [1.2.0] — 2026-04-04
+
+### Proud
+
+- RPM packages for Fedora, RHEL, openSUSE, and other RPM-based distros
+- Flatpak builds for Fedora Silverblue and other Flatpak-friendly distros
+- GitHub Pages site at https://dynamicskillset.github.io/nvAge/ with dynamic version display
+
+### Default
+
+- Duplicate GitHub link removed from site header
+- Flatpak build skips run tests to avoid xvfb failures in CI
+
 ## [1.1.0] — 2026-04-04
 
 ### Proud
