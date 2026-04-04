@@ -889,6 +889,22 @@
   user-select: none;
 }
 
+.update-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--bg-primary);
+  background: var(--accent);
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-decoration: none;
+  align-self: center;
+  transition: background 0.15s;
+}
+
+.update-badge:hover {
+  background: var(--accent-hover);
+}
+
 @media (max-width: 699px) {
   .version-label {
     display: none;

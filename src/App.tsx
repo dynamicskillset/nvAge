@@ -255,6 +255,8 @@ function App() {
   const [folderInput, setFolderInput] = useState("");
   const [deletedNote, setDeletedNote] = useState<Note | null>(null);
   const [appVersion, setAppVersion] = useState("");
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [latestVersion, setLatestVersion] = useState("");
   const [undoTimeout, setUndoTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem("nvage-theme");
@@ -482,12 +484,27 @@ function App() {
     };
   }, [editorContent, isEditing, activeNote, saveNote]);
 
-  // Focus search on mount, load notes folder
+  // Focus search on mount, load notes folder, check for updates
   useEffect(() => {
     search("");
     searchInputRef.current?.focus();
     invoke<string>("get_notes_folder").then(setNotesFolder).catch(() => {});
-    invoke<string>("get_app_version").then(setAppVersion).catch(() => {});
+    invoke<string>("get_app_version").then((v) => {
+      setAppVersion(v);
+      // Check GitHub for latest release
+      fetch("https://api.github.com/repos/dynamicskillset/nvage/releases/latest")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.tag_name) {
+            const latest = data.tag_name.replace(/^v/, "");
+            setLatestVersion(latest);
+            if (latest !== v) {
+              setUpdateAvailable(true);
+            }
+          }
+        })
+        .catch(() => {});
+    }).catch(() => {});
   }, [search]);
 
   // Keyboard navigation — Enter opens selected note, or shows create confirmation
@@ -864,6 +881,17 @@ function App() {
             ?
           </button>
           <span className="version-label">{appVersion ? `v${appVersion}` : ""}</span>
+          {updateAvailable && (
+            <a
+              href="https://github.com/dynamicskillset/nvAge/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="update-badge"
+              title={`Update available: v${latestVersion}`}
+            >
+              Update
+            </a>
+          )}
         </div>
       </div>
       )}
