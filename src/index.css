@@ -25,6 +25,11 @@
   --danger: #bf616a;
   --danger-hover: #d08770;
   --danger-bg: rgba(191, 97, 106, 0.1);
+  --warning: #bf616a;
+  --warning-bg: rgba(191, 97, 106, 0.1);
+  --conflict: #d08770;
+  --conflict-bg: rgba(208, 135, 112, 0.1);
+  --success: #a3be8c;
 
   /* Selection */
   --selection-bg: #5e81ac;

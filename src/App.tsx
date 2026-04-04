@@ -98,6 +98,22 @@ function highlightText(text: string, query: string): React.ReactNode {
   );
 }
 
+// ── Pure function for relative time (no React dependencies) ──
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return date.toLocaleDateString();
+}
+
 // ── Editor Theme Builder ──
 function buildEditorTheme() {
   const style = getComputedStyle(document.documentElement);
@@ -296,6 +312,15 @@ function App() {
       formattedTime: formatRelativeTime(r.modified),
     }));
   }, [results]);
+
+  // Memoized highlighted results — only recompute when results or query change
+  const highlightedResults = useMemo(() => {
+    return formattedResults.map((r) => ({
+      ...r,
+      highlightedTitle: highlightText(r.title || "Untitled", query),
+      highlightedPreview: r.preview ? highlightText(r.preview, query) : "Empty note",
+    }));
+  }, [formattedResults, query]);
 
   const search = useCallback(async (q: string) => {
     try {
@@ -531,21 +556,6 @@ function App() {
     }
   }, [activeNote, deleteConfirm, deleteNote]);
 
-  const formatRelativeTime = useCallback((dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return "just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
-  }, []);
-
   // ── Sync handlers ──
 
   const fetchSyncStatus = useCallback(async () => {
@@ -698,7 +708,7 @@ function App() {
             </div>
           ) : (
             <>
-          {formattedResults.map((result, idx) => (
+          {highlightedResults.map((result, idx) => (
             <div
               key={result.id}
               data-note-id={result.id}
@@ -714,10 +724,10 @@ function App() {
                 className="note-item-title"
                 style={activeNote?.id === result.id ? { viewTransitionName: `note-title-${result.id}` } : undefined}
               >
-                {highlightText(result.title || "Untitled", query)}
+                {result.highlightedTitle}
               </div>
               <div className="note-item-preview">
-                {result.preview ? highlightText(result.preview, query) : "Empty note"}
+                {result.highlightedPreview}
               </div>
               <div className="note-item-time">
                 {result.formattedTime}

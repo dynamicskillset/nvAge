@@ -73,43 +73,7 @@
   outline-offset: 2px;
 }
 
-.theme-toggle-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.15s;
-  flex-shrink: 0;
-}
-
-.theme-toggle-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.theme-toggle-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-@media (max-width: 699px) {
-  .theme-toggle-btn {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    font-size: 18px;
-  }
-}
-
-/* ── Note list ── */
+/* ── Editor ── */
 
 .note-list {
   flex: 1;
@@ -155,8 +119,8 @@
 
 .note-item-title mark.search-highlight,
 .note-item-preview mark.search-highlight {
-  background: #88c0d0 !important;
-  color: #2e3440 !important;
+  background: var(--accent) !important;
+  color: var(--bg-primary) !important;
   border-radius: 2px;
   padding: 0 2px;
   font-weight: 600;
@@ -301,18 +265,18 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: rgba(208, 135, 112, 0.1);
-  border-bottom: 1px solid #d08770;
+  background: var(--conflict-bg);
+  border-bottom: 1px solid var(--conflict);
   font-size: 13px;
-  color: #d08770;
+  color: var(--conflict);
 }
 
 .conflict-banner button {
   background: transparent;
-  border: 1px solid #d08770;
+  border: 1px solid var(--conflict);
   border-radius: 4px;
   padding: 2px 10px;
-  color: #d08770;
+  color: var(--conflict);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s;
@@ -321,12 +285,12 @@
 }
 
 .conflict-banner button:hover {
-  background: #d08770;
+  background: var(--conflict);
   color: var(--bg-primary);
 }
 
 .conflict-banner button:focus-visible {
-  outline: 2px solid #d08770;
+  outline: 2px solid var(--conflict);
   outline-offset: 2px;
 }
 
@@ -402,28 +366,6 @@
   margin-inline-end: 12px;
   flex: 1;
   min-width: 0;
-}
-
-/* Autosave pulse indicator — tiny dot in editor header */
-.saved-indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  opacity: 0;
-  flex-shrink: 0;
-  margin-inline-end: 8px;
-  transition: opacity 0.3s;
-}
-
-.saved-indicator.saved-pulse {
-  animation: saved-pulse 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-
-@keyframes saved-pulse {
-  0% { opacity: 0; transform: scale(0.5); background: var(--accent); }
-  30% { opacity: 1; transform: scale(1.3); background: var(--accent); }
-  100% { opacity: 0; transform: scale(1); background: var(--accent); }
 }
 
 .delete-btn {
@@ -718,9 +660,10 @@
   view-transition-name: editor;
 }
 
-/* Note list items — entry animation via @starting-style */
+/* Note list items — entry animation */
 .note-item {
   animation: note-enter 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-play-state: running;
 }
 
 @keyframes note-enter {
@@ -850,8 +793,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
   background: transparent;
   border: none;
   border-radius: 4px;
@@ -874,8 +817,8 @@
 }
 
 .help-btn {
-  width: 32px;
-  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1030,11 +973,11 @@
   align-items: flex-start;
   gap: 8px;
   padding: 12px;
-  background: rgba(191, 97, 106, 0.1);
+  background: var(--warning-bg);
   border: 1px solid rgba(191, 97, 106, 0.3);
   border-radius: 8px;
   font-size: 13px;
-  color: #bf616a;
+  color: var(--warning);
   line-height: 1.4;
 }
 
@@ -1076,6 +1019,8 @@
   font-family: monospace;
   color: var(--text-secondary);
   word-break: break-all;
+  overflow-wrap: break-word;
+  max-width: 100%;
   user-select: all;
   padding: 8px;
   background: var(--bg-primary);
@@ -1083,7 +1028,7 @@
 }
 
 .sync-primary-btn.key-copied {
-  background: #a3be8c;
+  background: var(--success);
 }
 
 .sync-import {
