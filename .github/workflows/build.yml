@@ -52,3 +52,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: ${{ matrix.args }}
+          tagName: ${{ github.ref_name }}
+          releaseName: "nvAge ${{ github.ref_name }}"
+          releaseBody: "See the [CHANGELOG](https://github.com/dynamicskillset/nvAge/blob/main/CHANGELOG.md) for details."
+          releaseDraft: false
+          prerelease: false
