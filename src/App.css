@@ -239,7 +239,8 @@
   background: transparent;
   border: 1px solid var(--danger);
   border-radius: 4px;
-  padding: 2px 10px;
+  padding: 8px 12px;
+  min-height: 44px;
   color: var(--danger);
   font-size: 12px;
   cursor: pointer;
@@ -275,7 +276,8 @@
   background: transparent;
   border: 1px solid var(--conflict);
   border-radius: 4px;
-  padding: 2px 10px;
+  padding: 8px 12px;
+  min-height: 44px;
   color: var(--conflict);
   font-size: 12px;
   cursor: pointer;
@@ -311,7 +313,8 @@
   background: transparent;
   border: 1px solid var(--accent);
   border-radius: 4px;
-  padding: 2px 10px;
+  padding: 8px 12px;
+  min-height: 44px;
   color: var(--accent);
   font-size: 12px;
   cursor: pointer;
@@ -513,6 +516,25 @@
 .cm-scroller {
   overflow: auto !important;
   max-width: 100% !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cm-scroller::-webkit-scrollbar {
+  width: 8px;
+}
+
+.cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 .cm-content {

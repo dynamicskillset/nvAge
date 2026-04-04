@@ -149,35 +149,6 @@ impl GitSyncProvider {
         }
         ids
     }
-
-    /// Collect active (non-deleted) local note IDs.
-    fn active_local_note_ids(&self, notes_folder: &Path) -> HashSet<String> {
-        let mut ids = HashSet::new();
-        if let Ok(notes) = note::list_notes(notes_folder) {
-            for n in &notes {
-                ids.insert(n.id.to_string());
-            }
-        }
-        ids
-    }
-
-    /// Collect soft-deleted local note IDs.
-    fn deleted_local_note_ids(&self, notes_folder: &Path) -> HashSet<String> {
-        let mut ids = HashSet::new();
-        if let Ok(deleted) = note::list_deleted_notes(notes_folder) {
-            for n in &deleted {
-                ids.insert(n.id.to_string());
-            }
-        }
-        ids
-    }
-
-    /// Collect all local note IDs (active + soft-deleted).
-    fn all_local_note_ids(&self, notes_folder: &Path) -> HashSet<String> {
-        let mut ids = self.active_local_note_ids(notes_folder);
-        ids.extend(self.deleted_local_note_ids(notes_folder));
-        ids
-    }
 }
 
 impl SyncProvider for GitSyncProvider {
@@ -199,13 +170,23 @@ impl SyncProvider for GitSyncProvider {
         let changed = self.changed_local_notes(notes_folder)?;
 
         // Detect orphaned .md.age files in the sync repo that no longer
-        // have a matching active local note — permanently deleted or soft-deleted.
-        let active_ids = self.active_local_note_ids(notes_folder);
+        // have a matching local note (active or soft-deleted).
+        let mut local_ids = HashSet::new();
+        if let Ok(notes) = note::list_notes(notes_folder) {
+            for n in &notes {
+                local_ids.insert(n.id.to_string());
+            }
+        }
+        if let Ok(deleted) = note::list_deleted_notes(notes_folder) {
+            for n in &deleted {
+                local_ids.insert(n.id.to_string());
+            }
+        }
         let mut removed_count = 0;
         if self.repo_path.join(".git").exists() {
             let remote_ids = self.remote_note_ids();
             for id in &remote_ids {
-                if !active_ids.contains(id) {
+                if !local_ids.contains(id) {
                     let age_path = self.repo_path.join(format!("{}.md.age", id));
                     if age_path.exists() {
                         std::fs::remove_file(&age_path)?;
@@ -228,8 +209,8 @@ impl SyncProvider for GitSyncProvider {
             std::fs::write(&age_path, encrypted)?;
         }
 
-        // Stage, commit, push
-        self.git(&["add", "*.md.age"])?;
+        // Stage, commit, push — use -A to catch deletions too
+        self.git(&["add", "-A", "--", "*.md.age"])?;
 
         let status = self.git(&["status", "--porcelain"])?;
         if String::from_utf8_lossy(&status.stdout).trim().is_empty() {
@@ -254,35 +235,6 @@ impl SyncProvider for GitSyncProvider {
         self.git(&["pull", "origin", &self.branch])?;
 
         let secret_key = crypto::load_secret_key(key_path)?;
-
-        // Collect remote note IDs after pull
-        let remote_ids = self.remote_note_ids();
-
-        // Soft-delete local notes that no longer exist on the remote.
-        // These were permanently deleted on another device.
-        let all_local_ids = self.all_local_note_ids(notes_folder);
-        let mut soft_deleted = 0;
-        for id in &all_local_ids {
-            if !remote_ids.contains(id) {
-                // Find the note on disk and soft-delete it
-                if let Ok(notes) = note::list_deleted_notes(notes_folder) {
-                    if let Some(n) = notes.iter().find(|n| n.id.to_string() == *id) {
-                        if !n.deleted {
-                            let mut note = n.clone();
-                            let _ = note::soft_delete_note(&mut note);
-                            soft_deleted += 1;
-                        }
-                    }
-                }
-                if let Ok(notes) = note::list_notes(notes_folder) {
-                    if let Some(n) = notes.iter().find(|n| n.id.to_string() == *id) {
-                        let mut note = n.clone();
-                        let _ = note::soft_delete_note(&mut note);
-                        soft_deleted += 1;
-                    }
-                }
-            }
-        }
 
         // Decrypt all .md.age files from the repo
         let mut pulled = 0;
@@ -346,6 +298,6 @@ impl SyncProvider for GitSyncProvider {
             pulled += 1;
         }
 
-        Ok((pulled + soft_deleted, conflicts))
+        Ok((pulled, conflicts))
     }
 }
