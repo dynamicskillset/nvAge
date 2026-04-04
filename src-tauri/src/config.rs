@@ -24,10 +24,18 @@ impl Default for WindowState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncConfig {
+    pub remote_url: String,
+    pub branch: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub notes_folder: PathBuf,
     #[serde(default)]
     pub window: WindowState,
+    #[serde(default)]
+    pub sync: Option<SyncConfig>,
 }
 
 impl AppConfig {
@@ -50,6 +58,7 @@ impl AppConfig {
             let config = Self {
                 notes_folder: Self::default_notes_folder(),
                 window: WindowState::default(),
+                sync: None,
             };
             config.save()?;
             return Ok(config);
@@ -71,6 +80,11 @@ impl AppConfig {
 
     pub fn set_notes_folder(&mut self, folder: PathBuf) -> Result<(), anyhow::Error> {
         self.notes_folder = folder;
+        self.save()
+    }
+
+    pub fn set_sync_config(&mut self, remote_url: String, branch: String) -> Result<(), anyhow::Error> {
+        self.sync = Some(SyncConfig { remote_url, branch });
         self.save()
     }
 }

@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 /// Status of the sync provider
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum SyncStatus {
     /// No sync configured
     NotConfigured,
@@ -17,6 +18,7 @@ pub enum SyncStatus {
 
 /// Result of a sync operation
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct SyncResult {
     pub status: SyncStatus,
     pub notes_pushed: usize,
@@ -52,6 +54,7 @@ pub trait SyncProvider: Send + Sync {
     ) -> Result<(usize, Vec<PathBuf>), anyhow::Error>;
 
     /// Run a full sync cycle: push then pull.
+    #[allow(dead_code)]
     fn sync(&self, notes_folder: &Path, key_path: &Path) -> Result<SyncResult, anyhow::Error> {
         let notes_pushed = self.push(notes_folder, key_path)?;
         let (notes_pulled, conflicts) = self.pull(notes_folder, key_path)?;

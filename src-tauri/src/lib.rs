@@ -246,14 +246,35 @@ fn configure_sync(remote_url: String, branch: String, state: State<Arc<AppState>
         .join("nvage")
         .join("sync-repo");
 
-    let provider = sync_git::GitSyncProvider::new(remote_url, branch, repo_path);
+    let provider = sync_git::GitSyncProvider::new(remote_url.clone(), branch.clone(), repo_path);
 
     {
         let mut provider_guard = state.sync_provider.lock().map_err(|e| e.to_string())?;
         *provider_guard = Some(provider);
     }
 
+    // Persist sync config to disk
+    {
+        let mut config = state.config.lock().map_err(|e| e.to_string())?;
+        config.set_sync_config(remote_url, branch).map_err(|e| e.to_string())?;
+    }
+
     Ok(())
+}
+
+#[derive(serde::Serialize)]
+struct SyncConfigDto {
+    remote_url: String,
+    branch: String,
+}
+
+#[tauri::command]
+fn get_sync_config(state: State<Arc<AppState>>) -> Result<Option<SyncConfigDto>, String> {
+    let config = state.config.lock().map_err(|e| e.to_string())?;
+    Ok(config.sync.as_ref().map(|sc| SyncConfigDto {
+        remote_url: sc.remote_url.clone(),
+        branch: sc.branch.clone(),
+    }))
 }
 
 #[derive(serde::Serialize)]
@@ -320,9 +341,14 @@ fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStat
     let result: Result<SyncStatusDto, String> = match direction.as_str() {
         "push" => {
             let count = provider.push(&folder, &key_path).map_err(|e| e.to_string())?;
+            let message = if count == 0 {
+                "All notes are up to date".to_string()
+            } else {
+                format!("Pushed {} notes", count)
+            };
             Ok(SyncStatusDto {
                 status: "idle".to_string(),
-                message: format!("Pushed {} notes", count),
+                message,
             })
         }
         "pull" => {
@@ -331,6 +357,11 @@ fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStat
                 Ok(SyncStatusDto {
                     status: "conflict".to_string(),
                     message: format!("Pulled {} notes, {} conflicts detected", count, conflicts.len()),
+                })
+            } else if count == 0 {
+                Ok(SyncStatusDto {
+                    status: "idle".to_string(),
+                    message: "All notes are up to date".to_string(),
                 })
             } else {
                 Ok(SyncStatusDto {
@@ -343,10 +374,14 @@ fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStat
             let pushed = provider.push(&folder, &key_path).map_err(|e| e.to_string())?;
             let (pulled, conflicts) = provider.pull(&folder, &key_path).map_err(|e| e.to_string())?;
             let status = if conflicts.is_empty() { "idle" } else { "conflict" };
-            Ok(SyncStatusDto {
-                status: status.to_string(),
-                message: format!("Pushed {} notes, pulled {} notes", pushed, pulled),
-            })
+            let message = match (pushed, pulled, conflicts.is_empty()) {
+                (0, 0, true) => "All notes are up to date".to_string(),
+                (0, 0, false) => format!("{} conflicts detected", conflicts.len()),
+                (p, 0, true) => format!("Pushed {} notes", p),
+                (0, p, true) => format!("Pulled {} notes", p),
+                (p, l, _) => format!("Pushed {} notes, pulled {} notes", p, l),
+            };
+            Ok(SyncStatusDto { status: status.to_string(), message })
         }
         _ => Err("Invalid sync direction. Use 'push', 'pull', or 'full'.".to_string()),
     };
@@ -432,17 +467,30 @@ pub fn run() {
 
     std::fs::create_dir_all(&notes_folder).expect("Failed to create notes folder");
 
-    let mut search_index =
+    let search_index =
         index::SearchIndex::new(&notes_folder).expect("Failed to create search index");
 
     let key_path = dirs::config_dir()
         .map(|d| d.join("nvage").join("key.txt"))
         .filter(|p| p.exists());
 
+    // Restore sync provider from persisted config if key exists
+    let sync_provider = if key_path.is_some() {
+        config.sync.as_ref().map(|sc| {
+            let repo_path = dirs::cache_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("nvage")
+                .join("sync-repo");
+            sync_git::GitSyncProvider::new(sc.remote_url.clone(), sc.branch.clone(), repo_path)
+        })
+    } else {
+        None
+    };
+
     let app_state = Arc::new(AppState {
         config: Mutex::new(config),
         search_index: Mutex::new(search_index),
-        sync_provider: Mutex::new(None),
+        sync_provider: Mutex::new(sync_provider),
         sync_key_path: Mutex::new(key_path),
     });
 
@@ -509,6 +557,7 @@ pub fn run() {
             generate_sync_key,
             import_sync_key,
             configure_sync,
+            get_sync_config,
             sync_notes,
             get_sync_status,
             validate_sync_setup,

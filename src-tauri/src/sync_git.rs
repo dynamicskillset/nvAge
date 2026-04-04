@@ -212,8 +212,43 @@ impl SyncProvider for GitSyncProvider {
     ) -> Result<(usize, Vec<PathBuf>), anyhow::Error> {
         self.ensure_repo()?;
 
+        // Record HEAD before pulling so we can detect actual changes
+        let head_before = self.git(&["rev-parse", "HEAD"])
+            .ok()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+
         self.git(&["fetch"])?;
         self.git(&["pull", "origin", &self.branch])?;
+
+        // Determine which .md.age files actually changed in this pull
+        let changed_files: HashSet<String> = if let Some(before) = &head_before {
+            if let Ok(after) = self.git(&["rev-parse", "HEAD"]) {
+                let after = String::from_utf8_lossy(&after.stdout).trim().to_string();
+                if before != &after {
+                    let diff = self.git(&["diff", "--name-only", before, &after]);
+                    if let Ok(output) = diff {
+                        String::from_utf8_lossy(&output.stdout)
+                            .lines()
+                            .filter(|f| f.ends_with(".md.age"))
+                            .filter_map(|f| {
+                                std::path::Path::new(f)
+                                    .file_stem()
+                                    .map(|s| s.to_string_lossy().trim_end_matches(".md").to_string())
+                            })
+                            .collect()
+                    } else {
+                        HashSet::new()
+                    }
+                } else {
+                    HashSet::new()
+                }
+            } else {
+                HashSet::new()
+            }
+        } else {
+            // No HEAD yet (fresh clone) — treat all files as new
+            self.remote_note_ids()
+        };
 
         let secret_key = crypto::load_secret_key(key_path)?;
 
@@ -231,6 +266,11 @@ impl SyncProvider for GitSyncProvider {
             }
 
             let note_id = filename.trim_end_matches(".md.age");
+
+            // Skip files that didn't actually change in this pull
+            if !changed_files.contains(note_id) {
+                continue;
+            }
 
             let local_exists = note::list_notes(notes_folder)?
                 .iter()

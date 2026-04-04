@@ -1,6 +1,6 @@
 use age::{
     secrecy::ExposeSecret,
-    x25519::{self, Identity, Recipient},
+    x25519::{Identity, Recipient},
     Encryptor, Decryptor,
 };
 use std::io::{Read, Write};
@@ -105,6 +105,7 @@ pub fn decrypt(identity: &Identity, ciphertext: &[u8]) -> Result<Vec<u8>, anyhow
 }
 
 /// Encrypt a file and write the encrypted output to a destination path.
+#[allow(dead_code)]
 pub fn encrypt_file(
     public_key: &str,
     source: &Path,
@@ -117,6 +118,7 @@ pub fn encrypt_file(
 }
 
 /// Decrypt a file and write the plaintext output to a destination path.
+#[allow(dead_code)]
 pub fn decrypt_file(
     identity: &Identity,
     source: &Path,
