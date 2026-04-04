@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nvAge — Local-first notes in the tradition of Notational Velocity</title>
+  <meta name="description" content="A fast, private notes app for your desktop. Type to search, press Enter to create. Your notes live as plain Markdown files on your own machine.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --bg: #2e3440;
+      --bg-alt: #3b4252;
+      --text: #eceff4;
+      --text-muted: #d8dee9;
+      --text-dim: #d8dee980;
+      --accent: #88c0d0;
+      --accent-hover: #81a1c1;
+      --border: #4c566a;
+      --card-bg: #3b4252;
+      --code-bg: #434c5e;
+    }
+
+    [data-theme="light"] {
+      --bg: #eceff4;
+      --bg-alt: #e5e9f0;
+      --text: #2e3440;
+      --text-muted: #3b4252;
+      --text-dim: #4c566a80;
+      --accent: #5e81ac;
+      --accent-hover: #81a1c1;
+      --border: #d8dee9;
+      --card-bg: #e5e9f0;
+      --code-bg: #d8dee9;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── Header ── */
+
+    header {
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .logo:hover { text-decoration: none; }
+
+    .logo svg {
+      color: var(--text);
+    }
+
+    .header-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-links a {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .header-links a:hover {
+      color: var(--text);
+    }
+
+    .theme-toggle {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+    }
+
+    .theme-toggle:hover { color: var(--text); }
+
+    /* ── Hero ── */
+
+    .hero {
+      padding: 80px 0 48px;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: clamp(28px, 5vw, 40px);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+
+    .hero p {
+      font-size: 18px;
+      color: var(--text-muted);
+      max-width: 560px;
+      margin: 0 auto 32px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      text-decoration: none;
+    }
+
+    .btn-secondary {
+      background: var(--card-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-alt);
+      text-decoration: none;
+    }
+
+    /* ── Features ── */
+
+    .features {
+      padding: 48px 0;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+    }
+
+    .feature {
+      padding: 24px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .feature-icon {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+
+    .feature h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .feature p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ── How it works ── */
+
+    .how-it-works {
+      padding: 48px 0;
+    }
+
+    .how-it-works h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .step {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .step-number {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .step h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .step p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* ── Screenshot ── */
+
+    .screenshot {
+      padding: 48px 0;
+      text-align: center;
+    }
+
+    .screenshot img {
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Footer ── */
+
+    footer {
+      padding: 32px 0;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    footer .container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    footer a {
+      color: var(--accent);
+    }
+
+    /* ── Responsive ── */
+
+    @media (max-width: 600px) {
+      .hero { padding: 48px 0 32px; }
+      .hero p { font-size: 16px; }
+      .features-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="https://github.com/dynamicskillset/nvAge" class="logo">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <rect x="7" y="4" width="18" height="24" rx="2"/>
+          <line x1="11" y1="10" x2="21" y2="10"/>
+          <line x1="11" y1="14" x2="19" y2="14"/>
+          <line x1="11" y1="18" x2="17" y2="18"/>
+          <line x1="11" y1="22" x2="15" y2="22"/>
+        </svg>
+        nvAge
+      </a>
+      <div class="header-links">
+        <a href="https://github.com/dynamicskillset/nvAge">GitHub</a>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+          <svg id="theme-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h1>Notes that stay<br>on your machine</h1>
+        <p>A fast, private notes app in the tradition of Notational Velocity. Type to search, press Enter to create. Your notes are plain Markdown files — readable by any editor, grep-able, portable.</p>
+        <div class="hero-actions">
+          <a href="https://github.com/dynamicskillset/nvAge/releases" class="btn btn-primary">Download</a>
+          <a href="https://github.com/dynamicskillset/nvAge" class="btn btn-secondary">View on GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="container">
+        <div class="features-grid">
+          <div class="feature">
+            <div class="feature-icon">⚡</div>
+            <h3>Instant search</h3>
+            <p>Full-text search across all notes on every keystroke. SQLite-backed, sub-10ms response.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">⌨️</div>
+            <h3>Keyboard-first</h3>
+            <p>Arrow keys navigate, Enter opens or creates, Escape returns to search. No mouse needed.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🔒</div>
+            <h3>Encrypted sync</h3>
+            <p>Notes encrypted with <code>age</code> before they leave your device. Sync via Git to any remote.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">📄</div>
+            <h3>Plain Markdown</h3>
+            <p>Your notes are just <code>.md</code> files in a folder. Open them in any editor, back them up however you like.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🎨</div>
+            <h3>Nord theme</h3>
+            <p>Dark and light modes using the Nord colour palette. Respects your OS preference automatically.</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">🔄</div>
+            <h3>Auto-sync</h3>
+            <p>When configured, sync runs every 5 minutes in the background. A status dot shows if you're up to date.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screenshot">
+      <div class="container">
+        <img src="screenshot.png" alt="nvAge screenshot showing the two-pane interface with search and editor">
+      </div>
+    </section>
+
+    <section class="how-it-works">
+      <div class="container">
+        <h2>How it works</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div>
+              <h3>Launch and type</h3>
+              <p>The app opens with your cursor in the search field. Start typing to filter notes instantly.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div>
+              <h3>Create or open</h3>
+              <p>Press Enter to open a matching note, or to create a new one if nothing matches.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div>
+              <h3>Edit with autosave</h3>
+              <p>Changes are saved automatically as you type. No save button, no save shortcut, no save indicator.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">4</div>
+            <div>
+              <h3>Sync across devices</h3>
+              <p>Optionally configure encrypted sync via Git. Your notes are encrypted with <code>age</code> before they leave your machine.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <span>v1.1.0 · <a href="https://github.com/dynamicskillset/nvAge/blob/main/LICENSE">AGPL-3.0</a> · <a href="https://github.com/dynamicskillset/nvAge">GitHub</a></span>
+      <span>Built by <a href="https://dynamicskillset.com">Dynamic Skillset</a></span>
+    </div>
+  </footer>
+
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme');
+      const next = current === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('nvage-theme', next);
+      updateIcon(next);
+    }
+
+    function updateIcon(theme) {
+      const icon = document.getElementById('theme-icon');
+      if (theme === 'light') {
+        icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+      } else {
+        icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+      }
+    }
+
+    // Init theme
+    const saved = localStorage.getItem('nvage-theme');
+    if (saved) {
+      document.documentElement.setAttribute('data-theme', saved);
+      updateIcon(saved);
+    } else if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+      document.documentElement.setAttribute('data-theme', 'light');
+      updateIcon('light');
+    }
+  </script>
+</body>
+</html>
