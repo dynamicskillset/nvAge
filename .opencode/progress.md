@@ -8,7 +8,7 @@ A local-first, cross-platform desktop notes app in the tradition of Notational V
 
 Full product spec: `nvage-prd.md`
 
-## Current Status: v0.3.0 — Audit Fixes, Sync Pull Counting, Touch Targets
+## Current Status: v0.3.0 — Sync Persistence Fix, Flatpak CI, Release Artifacts
 
 Milestones 1, 2, and 3 are complete. v0.3.0 is a quality pass following a technical audit: fixes sync pull counting (now uses `git diff` to detect actual changes), adds missing CSS for sync config display, replaces hard-coded hex with CSS variables, improves touch targets, and cleans up compiler warnings.
 
@@ -149,6 +149,12 @@ Milestones 1, 2, and 3 are complete. v0.3.0 is a quality pass following a techni
 15. **Missing CSS for sync-config classes** — `sync-config-info`, `sync-config-row`, `sync-config-label`, `sync-config-value` used in JSX with no styles defined.
 16. **Hard-coded hex in sync-dot indicators** — 4 Aurora hex values bypassed the CSS variable token system.
 17. **Undersized touch targets on desktop** — new-note-btn (32px), delete-btn, sync-close-btn all below comfortable click targets.
+18. **Sync config lost on restart** — window close handler was loading a fresh `AppConfig` from disk (which could be stale) and saving only window state, overwriting the sync config. Fixed by using the in-memory `AppState.config` instead.
+19. **Flatpak manifest filename case mismatch** — file was `com.doug.nvAge.yml` but workflow referenced `com.doug.nvage.yml`. macOS case-insensitive filesystem hid the discrepancy.
+20. **Flatpak `npm install` crash in sandbox** — npm's "Exit handler never called!" error inside flatpak-builder. Fixed by switching to `npm ci --prefer-offline`.
+21. **GNOME 47 runtime EOL** — Flatpak manifest updated to GNOME 48.
+22. **Missing icon in Flatpak builds** — Flatpak bypasses Tauri's bundler, so no icon or `.desktop` file was installed. Added explicit install commands for icons and desktop entry.
+23. **Missing 512px icon in Tauri bundle config** — `icon-512.png` was not listed in `tauri.conf.json`, causing AppImage and other Linux bundles to fall back to the default Tauri icon.
 
 ---
 
@@ -190,9 +196,9 @@ Milestones 1, 2, and 3 are complete. v0.3.0 is a quality pass following a techni
 
 - **Git** — `https://github.com/dynamicskillset/nvAge`
 - **Kin** — semantic VCS at `.kin/`
-- Latest git commit: `55637c8` — "♻️ fix pull counting, persist sync config, clean dead code"
-- Latest kin commit: pending
-- Total entities tracked: 174
+- Latest git commit: `3a682de` — "🔧 update Flatpak manifest to GNOME 48 and use npm ci for sandboxed builds"
+- Latest kin commit: pending (head: 66bc199e216a43c99b9543dcfc9d30d89a47a7ef05c13ad276fbfbacbe26df95)
+- Total entities tracked: 168
 
 ---
 
