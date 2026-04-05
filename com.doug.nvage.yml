@@ -1,6 +1,6 @@
 app-id: com.doug.nvage
 runtime: org.gnome.Platform
-runtime-version: '47'
+runtime-version: '48'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.node22
@@ -21,8 +21,9 @@ modules:
       append-path: /usr/lib/sdk/node22/bin
       env:
         NPM_CONFIG_CACHE: /run/build/nvage/npm-cache
+        NPM_CONFIG_OFFLINE: 'true'
     build-commands:
-      - npm install
+      - npm ci --prefer-offline --no-audit --no-fund
       - npm run tauri build
       - install -Dm755 src-tauri/target/release/nvage /app/bin/nvage
       - install -Dm644 com.doug.nvage.desktop /app/share/applications/com.doug.nvage.desktop
