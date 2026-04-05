@@ -8,8 +8,8 @@ mod watcher;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tauri::{Manager, State};
 use sync_provider::SyncProvider;
+use tauri::{Manager, State};
 
 struct AppState {
     config: Mutex<config::AppConfig>,
@@ -71,9 +71,7 @@ fn get_note(id: String, state: State<Arc<AppState>>) -> Result<Option<NoteDto>, 
     drop(config);
 
     let index = state.search_index.lock().map_err(|e| e.to_string())?;
-    let n = index
-        .get_note(&id, &folder)
-        .map_err(|e| e.to_string())?;
+    let n = index.get_note(&id, &folder).map_err(|e| e.to_string())?;
     Ok(n.map(|n| NoteDto {
         id: n.id.to_string(),
         title: n.title,
@@ -84,7 +82,11 @@ fn get_note(id: String, state: State<Arc<AppState>>) -> Result<Option<NoteDto>, 
 }
 
 #[tauri::command]
-fn create_note(title: String, content: String, state: State<Arc<AppState>>) -> Result<NoteDto, String> {
+fn create_note(
+    title: String,
+    content: String,
+    state: State<Arc<AppState>>,
+) -> Result<NoteDto, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?;
     let folder = config.notes_folder.clone();
     drop(config);
@@ -106,7 +108,11 @@ fn create_note(title: String, content: String, state: State<Arc<AppState>>) -> R
 }
 
 #[tauri::command]
-fn update_note(id: String, content: String, state: State<Arc<AppState>>) -> Result<NoteDto, String> {
+fn update_note(
+    id: String,
+    content: String,
+    state: State<Arc<AppState>>,
+) -> Result<NoteDto, String> {
     let config = state.config.lock().map_err(|e| e.to_string())?;
     let folder = config.notes_folder.clone();
     drop(config);
@@ -167,7 +173,9 @@ fn set_notes_folder(folder: String, state: State<Arc<AppState>>) -> Result<(), S
 
     {
         let mut config = state.config.lock().map_err(|e| e.to_string())?;
-        config.set_notes_folder(path.clone()).map_err(|e| e.to_string())?;
+        config
+            .set_notes_folder(path.clone())
+            .map_err(|e| e.to_string())?;
     }
 
     {
@@ -207,7 +215,10 @@ fn generate_sync_key(state: State<Arc<AppState>>) -> Result<KeyPairDto, String> 
         *key_guard = Some(key_path);
     }
 
-    Ok(KeyPairDto { public_key, secret_key })
+    Ok(KeyPairDto {
+        public_key,
+        secret_key,
+    })
 }
 
 #[tauri::command]
@@ -227,14 +238,23 @@ fn import_sync_key(key_str: String, state: State<Arc<AppState>>) -> Result<KeyPa
         *key_guard = Some(key_path);
     }
 
-    Ok(KeyPairDto { public_key, secret_key: key_str })
+    Ok(KeyPairDto {
+        public_key,
+        secret_key: key_str,
+    })
 }
 
 #[tauri::command]
-fn configure_sync(remote_url: String, branch: String, state: State<Arc<AppState>>) -> Result<(), String> {
+fn configure_sync(
+    remote_url: String,
+    branch: String,
+    state: State<Arc<AppState>>,
+) -> Result<(), String> {
     let key_path = {
         let guard = state.sync_key_path.lock().map_err(|e| e.to_string())?;
-        guard.clone().ok_or_else(|| "No sync key configured. Generate or import a key first.".to_string())?
+        guard
+            .clone()
+            .ok_or_else(|| "No sync key configured. Generate or import a key first.".to_string())?
     };
 
     if !key_path.exists() {
@@ -256,7 +276,9 @@ fn configure_sync(remote_url: String, branch: String, state: State<Arc<AppState>
     // Persist sync config to disk
     {
         let mut config = state.config.lock().map_err(|e| e.to_string())?;
-        config.set_sync_config(remote_url, branch).map_err(|e| e.to_string())?;
+        config
+            .set_sync_config(remote_url, branch)
+            .map_err(|e| e.to_string())?;
     }
 
     Ok(())
@@ -286,7 +308,10 @@ struct ValidationDto {
 }
 
 #[tauri::command]
-fn validate_sync_setup(remote_url: String, state: State<Arc<AppState>>) -> Result<ValidationDto, String> {
+fn validate_sync_setup(
+    remote_url: String,
+    state: State<Arc<AppState>>,
+) -> Result<ValidationDto, String> {
     let mut errors = Vec::new();
 
     let git_installed = sync_git::find_git().is_ok();
@@ -327,7 +352,9 @@ fn validate_sync_setup(remote_url: String, state: State<Arc<AppState>>) -> Resul
 fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStatusDto, String> {
     let key_path = {
         let guard = state.sync_key_path.lock().map_err(|e| e.to_string())?;
-        guard.clone().ok_or_else(|| "No sync key configured.".to_string())?
+        guard
+            .clone()
+            .ok_or_else(|| "No sync key configured.".to_string())?
     };
 
     let folder = {
@@ -336,11 +363,15 @@ fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStat
     };
 
     let mut provider_guard = state.sync_provider.lock().map_err(|e| e.to_string())?;
-    let provider = provider_guard.as_mut().ok_or_else(|| "Sync not configured.".to_string())?;
+    let provider = provider_guard
+        .as_mut()
+        .ok_or_else(|| "Sync not configured.".to_string())?;
 
     let result: Result<SyncStatusDto, String> = match direction.as_str() {
         "push" => {
-            let count = provider.push(&folder, &key_path).map_err(|e| e.to_string())?;
+            let count = provider
+                .push(&folder, &key_path)
+                .map_err(|e| e.to_string())?;
             let message = if count == 0 {
                 "All notes are up to date".to_string()
             } else {
@@ -352,11 +383,17 @@ fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStat
             })
         }
         "pull" => {
-            let (count, conflicts) = provider.pull(&folder, &key_path).map_err(|e| e.to_string())?;
+            let (count, conflicts) = provider
+                .pull(&folder, &key_path)
+                .map_err(|e| e.to_string())?;
             if !conflicts.is_empty() {
                 Ok(SyncStatusDto {
                     status: "conflict".to_string(),
-                    message: format!("Pulled {} notes, {} conflicts detected", count, conflicts.len()),
+                    message: format!(
+                        "Pulled {} notes, {} conflicts detected",
+                        count,
+                        conflicts.len()
+                    ),
                 })
             } else if count == 0 {
                 Ok(SyncStatusDto {
@@ -371,9 +408,17 @@ fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStat
             }
         }
         "full" => {
-            let pushed = provider.push(&folder, &key_path).map_err(|e| e.to_string())?;
-            let (pulled, conflicts) = provider.pull(&folder, &key_path).map_err(|e| e.to_string())?;
-            let status = if conflicts.is_empty() { "idle" } else { "conflict" };
+            let pushed = provider
+                .push(&folder, &key_path)
+                .map_err(|e| e.to_string())?;
+            let (pulled, conflicts) = provider
+                .pull(&folder, &key_path)
+                .map_err(|e| e.to_string())?;
+            let status = if conflicts.is_empty() {
+                "idle"
+            } else {
+                "conflict"
+            };
             let message = match (pushed, pulled, conflicts.is_empty()) {
                 (0, 0, true) => "All notes are up to date".to_string(),
                 (0, 0, false) => format!("{} conflicts detected", conflicts.len()),
@@ -381,7 +426,10 @@ fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStat
                 (0, p, true) => format!("Pulled {} notes", p),
                 (p, l, _) => format!("Pushed {} notes, pulled {} notes", p, l),
             };
-            Ok(SyncStatusDto { status: status.to_string(), message })
+            Ok(SyncStatusDto {
+                status: status.to_string(),
+                message,
+            })
         }
         _ => Err("Invalid sync direction. Use 'push', 'pull', or 'full'.".to_string()),
     };
@@ -394,6 +442,19 @@ fn sync_notes(direction: String, state: State<Arc<AppState>>) -> Result<SyncStat
     }
 
     Ok(result)
+}
+
+#[tauri::command]
+fn reset_sync(state: State<Arc<AppState>>) -> Result<(), String> {
+    {
+        let mut provider_guard = state.sync_provider.lock().map_err(|e| e.to_string())?;
+        *provider_guard = None;
+    }
+    {
+        let mut key_guard = state.sync_key_path.lock().map_err(|e| e.to_string())?;
+        *key_guard = None;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -493,7 +554,9 @@ pub fn run() {
     let has_sync_provider = sync_provider.is_some();
     log::info!(
         "Sync state on startup: key={}, config={}, provider={}",
-        key_exists, has_sync_config, has_sync_provider
+        key_exists,
+        has_sync_config,
+        has_sync_provider
     );
 
     let app_state = Arc::new(AppState {
@@ -573,6 +636,7 @@ pub fn run() {
             get_sync_config,
             sync_notes,
             get_sync_status,
+            reset_sync,
             validate_sync_setup,
         ])
         .run(tauri::generate_context!())

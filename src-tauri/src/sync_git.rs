@@ -1,9 +1,9 @@
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-use std::process::Command;
 use crate::crypto;
 use crate::note;
 use crate::sync_provider::{SyncProvider, SyncStatus};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 /// Find the git binary. Tauri apps don't inherit shell PATH, so we
 /// search common locations before falling back to just "git".
@@ -104,10 +104,7 @@ impl GitSyncProvider {
         Ok(identity.to_public().to_string())
     }
 
-    fn changed_local_notes(
-        &self,
-        notes_folder: &Path,
-    ) -> Result<Vec<note::Note>, anyhow::Error> {
+    fn changed_local_notes(&self, notes_folder: &Path) -> Result<Vec<note::Note>, anyhow::Error> {
         let notes = note::list_notes(notes_folder)?;
         let mut changed = Vec::new();
 
@@ -213,7 +210,8 @@ impl SyncProvider for GitSyncProvider {
         self.ensure_repo()?;
 
         // Record HEAD before pulling so we can detect actual changes
-        let head_before = self.git(&["rev-parse", "HEAD"])
+        let head_before = self
+            .git(&["rev-parse", "HEAD"])
             .ok()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
 
@@ -231,9 +229,9 @@ impl SyncProvider for GitSyncProvider {
                             .lines()
                             .filter(|f| f.ends_with(".md.age"))
                             .filter_map(|f| {
-                                std::path::Path::new(f)
-                                    .file_stem()
-                                    .map(|s| s.to_string_lossy().trim_end_matches(".md").to_string())
+                                std::path::Path::new(f).file_stem().map(|s| {
+                                    s.to_string_lossy().trim_end_matches(".md").to_string()
+                                })
                             })
                             .collect()
                     } else {

@@ -61,7 +61,8 @@ pub fn build_frontmatter(note: &Note) -> String {
     format!(
         "---\nid: {}\ncreated: {}\n---\n",
         note.id,
-        note.created.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+        note.created
+            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
     )
 }
 
@@ -160,11 +161,7 @@ pub fn update_note(note: &mut Note) -> Result<(), anyhow::Error> {
     note.title = extract_title(&note.content);
 
     let new_slug = slugify(&note.title);
-    let new_path = note
-        .path
-        .parent()
-        .unwrap()
-        .join(format!("{}.md", new_slug));
+    let new_path = note.path.parent().unwrap().join(format!("{}.md", new_slug));
 
     let serialized = serialize_note(note);
     fs::write(&new_path, &serialized)?;

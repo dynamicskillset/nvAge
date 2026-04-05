@@ -1,6 +1,6 @@
-use rusqlite::{Connection, OptionalExtension, params};
-use std::path::{Path, PathBuf};
 use crate::note;
+use rusqlite::{params, Connection, OptionalExtension};
+use std::path::{Path, PathBuf};
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS notes (
@@ -53,7 +53,11 @@ impl SearchIndex {
 
     /// Incrementally update the index for specific changed files.
     /// Much cheaper than a full rebuild — only touches the affected notes.
-    pub fn update_files(&mut self, notes_folder: &Path, changed: &[PathBuf]) -> Result<(), anyhow::Error> {
+    pub fn update_files(
+        &mut self,
+        notes_folder: &Path,
+        changed: &[PathBuf],
+    ) -> Result<(), anyhow::Error> {
         for path in changed {
             // Check if the file still exists
             if path.exists() && path.extension().and_then(|e| e.to_str()) == Some("md") {
@@ -66,10 +70,8 @@ impl SearchIndex {
                     .strip_prefix(notes_folder)
                     .unwrap_or(path)
                     .to_string_lossy();
-                self.conn.execute(
-                    "DELETE FROM notes WHERE path = ?1",
-                    params![relative],
-                )?;
+                self.conn
+                    .execute("DELETE FROM notes WHERE path = ?1", params![relative])?;
             }
         }
         Ok(())
@@ -98,19 +100,17 @@ impl SearchIndex {
     }
 
     pub fn delete(&mut self, id: &str) -> Result<(), anyhow::Error> {
-        self.conn.execute(
-            "DELETE FROM notes WHERE id = ?1",
-            params![id],
-        )?;
+        self.conn
+            .execute("DELETE FROM notes WHERE id = ?1", params![id])?;
         Ok(())
     }
 
     pub fn search(&self, query: &str) -> Result<Vec<SearchResult>, anyhow::Error> {
         // For empty or short queries, return all notes ordered by recency
         if query.trim().is_empty() || query.trim().len() < 3 {
-            let mut stmt = self.conn.prepare(
-                "SELECT id, title, content, modified FROM notes ORDER BY modified DESC"
-            )?;
+            let mut stmt = self
+                .conn
+                .prepare("SELECT id, title, content, modified FROM notes ORDER BY modified DESC")?;
             let rows = stmt.query_map([], |row| {
                 Ok(SearchResult {
                     id: row.get(0)?,
@@ -133,7 +133,7 @@ impl SearchIndex {
             "SELECT id, title, content, modified FROM notes \
              WHERE title LIKE ?1 OR content LIKE ?1 \
              ORDER BY modified DESC \
-             LIMIT 100"
+             LIMIT 100",
         )?;
 
         let rows = stmt.query_map(params![like_query], |row| {
@@ -152,15 +152,17 @@ impl SearchIndex {
         Ok(results)
     }
 
-    pub fn get_note(&self, id: &str, notes_folder: &Path) -> Result<Option<note::Note>, anyhow::Error> {
+    pub fn get_note(
+        &self,
+        id: &str,
+        notes_folder: &Path,
+    ) -> Result<Option<note::Note>, anyhow::Error> {
         let note_path = notes_folder.join(format!("{}.md", id));
         if note_path.exists() {
             return Ok(Some(note::deserialize_note(&note_path)?));
         }
 
-        let mut stmt = self.conn.prepare(
-            "SELECT path FROM notes WHERE id = ?1"
-        )?;
+        let mut stmt = self.conn.prepare("SELECT path FROM notes WHERE id = ?1")?;
         let path_str: Option<String> = stmt.query_row(params![id], |row| row.get(0)).optional()?;
 
         if let Some(path_str) = path_str {
@@ -198,8 +200,5 @@ fn make_preview(content: &str) -> String {
     }
 
     // Return the second line (first line after title) as preview
-    lines[1]
-        .chars()
-        .take(100)
-        .collect()
+    lines[1].chars().take(100).collect()
 }

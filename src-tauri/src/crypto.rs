@@ -1,7 +1,7 @@
 use age::{
     secrecy::ExposeSecret,
     x25519::{Identity, Recipient},
-    Encryptor, Decryptor,
+    Decryptor, Encryptor,
 };
 use std::io::{Read, Write};
 use std::path::Path;
@@ -106,11 +106,7 @@ pub fn decrypt(identity: &Identity, ciphertext: &[u8]) -> Result<Vec<u8>, anyhow
 
 /// Encrypt a file and write the encrypted output to a destination path.
 #[allow(dead_code)]
-pub fn encrypt_file(
-    public_key: &str,
-    source: &Path,
-    dest: &Path,
-) -> Result<(), anyhow::Error> {
+pub fn encrypt_file(public_key: &str, source: &Path, dest: &Path) -> Result<(), anyhow::Error> {
     let plaintext = std::fs::read(source)?;
     let encrypted = encrypt(public_key, &plaintext)?;
     std::fs::write(dest, encrypted)?;
@@ -119,11 +115,7 @@ pub fn encrypt_file(
 
 /// Decrypt a file and write the plaintext output to a destination path.
 #[allow(dead_code)]
-pub fn decrypt_file(
-    identity: &Identity,
-    source: &Path,
-    dest: &Path,
-) -> Result<(), anyhow::Error> {
+pub fn decrypt_file(identity: &Identity, source: &Path, dest: &Path) -> Result<(), anyhow::Error> {
     let ciphertext = std::fs::read(source)?;
     let plaintext = decrypt(identity, &ciphertext)?;
     std::fs::write(dest, plaintext)?;
@@ -225,11 +217,13 @@ mod tests {
                 path
             );
 
-            let decrypted = decrypt(&identity, &data).expect(
-                "Failed to decrypt file — key mismatch or corruption"
-            );
+            let decrypted = decrypt(&identity, &data)
+                .expect("Failed to decrypt file — key mismatch or corruption");
 
-            let original_note = notes.iter().find(|(name, _)| path.file_name().unwrap() == *name).unwrap();
+            let original_note = notes
+                .iter()
+                .find(|(name, _)| path.file_name().unwrap() == *name)
+                .unwrap();
             assert_eq!(
                 String::from_utf8_lossy(&decrypted),
                 original_note.1,

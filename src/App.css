@@ -1218,6 +1218,27 @@
   outline-offset: 2px;
 }
 
+.sync-danger-btn {
+  background: transparent;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 8px 16px;
+  color: var(--danger);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sync-danger-btn:hover {
+  background: var(--danger);
+  color: var(--bg-primary);
+}
+
+.sync-danger-btn:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
+}
+
 .sync-actions {
   display: flex;
   flex-direction: column;

@@ -681,7 +681,7 @@ function App() {
         await search(query);
       }
     } catch (e) {
-      setSyncError(friendlyError(e, "Sync failed"));
+      setSyncError(friendlyError(e, "Sync"));
     } finally {
       setSyncLoading(false);
     }
@@ -1255,6 +1255,25 @@ function App() {
 
                 <button className="sync-secondary-btn" onClick={() => setShowSyncSetup(false)}>
                   Close
+                </button>
+
+                <div className="sync-divider"><span>or</span></div>
+
+                <button
+                  className="sync-danger-btn"
+                  onClick={async () => {
+                    try {
+                      await invoke("reset_sync");
+                      setSyncStatus("not_configured");
+                      setSyncMessage("");
+                      setSyncError(null);
+                      setSyncStep("welcome");
+                    } catch (e) {
+                      setSyncError(friendlyError(e, "Failed to remove sync"));
+                    }
+                  }}
+                >
+                  Remove sync
                 </button>
               </div>
             )}

@@ -83,7 +83,11 @@ impl AppConfig {
         self.save()
     }
 
-    pub fn set_sync_config(&mut self, remote_url: String, branch: String) -> Result<(), anyhow::Error> {
+    pub fn set_sync_config(
+        &mut self,
+        remote_url: String,
+        branch: String,
+    ) -> Result<(), anyhow::Error> {
         self.sync = Some(SyncConfig { remote_url, branch });
         self.save()
     }
