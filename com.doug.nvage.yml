@@ -2,8 +2,6 @@ app-id: com.doug.nvage
 runtime: org.gnome.Platform
 runtime-version: '48'
 sdk: org.gnome.Sdk
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.node22
 command: nvage
 finish-args:
   - --share=ipc
@@ -14,19 +12,10 @@ finish-args:
   - --filesystem=home
   - --filesystem=xdg-config/nvage:create
   - --filesystem=xdg-cache/nvage:create
-build-options:
-  allow-network: true
 modules:
   - name: nvage
     buildsystem: simple
-    build-options:
-      append-path: /usr/lib/sdk/node22/bin
-      env:
-        NPM_CONFIG_CACHE: /run/build/nvage/npm-cache
-        NPM_CONFIG_OFFLINE: 'true'
     build-commands:
-      - npm ci --prefer-offline --no-audit --no-fund
-      - npm run tauri build
       - install -Dm755 src-tauri/target/release/nvage /app/bin/nvage
       - install -Dm644 com.doug.nvage.desktop /app/share/applications/com.doug.nvage.desktop
       - install -Dm644 src-tauri/icons/32x32.png /app/share/icons/hicolor/32x32/apps/com.doug.nvage.png
@@ -38,6 +27,8 @@ modules:
         path: .
         skip:
           - node_modules
-          - src-tauri/target
           - dist
           - .git
+          - .flatpak-builder
+          - flatpak-build
+          - repo
