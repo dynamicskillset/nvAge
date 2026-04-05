@@ -14,6 +14,8 @@ finish-args:
   - --filesystem=home
   - --filesystem=xdg-config/nvage:create
   - --filesystem=xdg-cache/nvage:create
+build-options:
+  allow-network: true
 modules:
   - name: nvage
     buildsystem: simple
