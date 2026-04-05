@@ -1,6 +1,6 @@
 # nvAge — Progress Report
 
-**Last updated:** 2026-04-04
+**Last updated:** 2026-04-05
 
 ## What nvAge Is
 
@@ -11,6 +11,14 @@ Full product spec: `nvage-prd.md`
 ## Current Status: v0.3.0 — Audit Fixes, Sync Pull Counting, Touch Targets
 
 Milestones 1, 2, and 3 are complete. v0.3.0 is a quality pass following a technical audit: fixes sync pull counting (now uses `git diff` to detect actual changes), adds missing CSS for sync config display, replaces hard-coded hex with CSS variables, improves touch targets, and cleans up compiler warnings.
+
+### Recent work (2026-04-05)
+
+- **Sync error fix**: Fixed double "failed" in sync error message ("Sync failed failed" → "Sync failed"). Added `reset_sync` IPC command and "Remove sync" button in the sync setup UI so users can start fresh.
+- **Flatpak CI**: Multiple attempts to get Flatpak building on GitHub Actions. The `flatpak/flatpak-github-actions/flatpak-builder@v6` action runs in an isolated Docker container that can't see pre-built binaries from the host runner. Current approach: build Tauri natively on the runner, then run `flatpak-builder` directly (not via the action) to package the pre-built binary. Still failing — the Docker container used by the action can't access the host filesystem. **This is the top priority for the next session.**
+- **Slash commands**: `/handoff` and `/catchup` created and confirmed working after OpenCode restart.
+- **`mistakes.md`**: New file to track things that went wrong and should be avoided.
+- **Kin remote**: Configured `origin` as default remote (`github / git-export` → `https://github.com/dynamicskillset/nvAge`). Fixed `.kin/config.toml` world preset case sensitivity (`"Native"` → `"native"`).
 
 ---
 
