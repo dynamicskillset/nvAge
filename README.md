@@ -55,7 +55,7 @@ Built with [Tauri v2](https://v2.tauri.app/) — Rust backend, React/TypeScript 
 | Shell | [Tauri v2](https://v2.tauri.app/) |
 | Frontend | React + TypeScript + Vite |
 | Editor | [CodeMirror 6](https://codemirror.net/) |
-| Search | SQLite with FTS5 full-text search |
+| Search | SQLite (`LIKE` substring matching) |
 | File watching | [notify](https://crates.io/crates/notify) crate |
 | Encryption | [age](https://crates.io/crates/age) crate |
 | Styling | Nord colour palette, CSS custom properties |
@@ -91,20 +91,27 @@ npm run tauri build
 
 ### Flatpak (Fedora Silverblue)
 
-Flatpak builds are done locally rather than in CI due to WebKitGTK requirements in the build container.
+Flatpak and RPM builds are done in GitHub Actions. After each push to `main`, the workflow produces:
+
+- **RPM** — install with `rpm-ostree install ./nvAge.rpm` (requires reboot)
+- **Flatpak** — install with `flatpak install nvAge.flatpak`
+
+Download the latest artifacts from the [Actions tab](https://github.com/dynamicskillset/nvAge/actions) or from a release.
+
+To build locally instead:
 
 ```bash
 # Install flatpak-builder
 rpm-ostree install flatpak-builder
 systemctl reboot
 
-# Build and install
+# Build and test
 cd nvAge
-flatpak-builder --force-clean --install-deps-from=flathub build-dir com.doug.nvAge.yml
-flatpak-builder --run build-dir com.doug.nvAge.yml nvage
+flatpak-builder --force-clean --install-deps-from=flathub build-dir com.doug.nvage.yml
+flatpak-builder --run build-dir com.doug.nvage.yml nvage
 
 # Create a distributable bundle
-flatpak build-bundle build-dir nvAge.flatpak com.doug.nvAge
+flatpak build-bundle build-dir nvAge.flatpak com.doug.nvage
 ```
 
 ### Configuration

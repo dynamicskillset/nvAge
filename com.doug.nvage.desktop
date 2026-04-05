@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=nvAge
+Comment=A fast, private notes app
+Exec=nvage
+Icon=com.doug.nvage
+Terminal=false
+Categories=Utility;TextEditor;

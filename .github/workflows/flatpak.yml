@@ -1,0 +1,26 @@
+name: Flatpak
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  flatpak:
+    name: "Flatpak (x86_64)"
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-48
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: nvAge.flatpak
+          manifest-path: com.doug.nvage.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+          build-bundle: true
+          upload-artifact: true
