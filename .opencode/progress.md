@@ -196,7 +196,7 @@ Milestones 1, 2, and 3 are complete. v0.3.0 is a quality pass following a techni
 
 - **Git** — `https://github.com/dynamicskillset/nvAge`
 - **Kin** — semantic VCS at `.kin/`
-- Latest git commit: `3a682de` — "🔧 update Flatpak manifest to GNOME 48 and use npm ci for sandboxed builds"
+- Latest git commit: `f68c096` — "📝 add handoff/catchup commands, mistakes.md, and opencode permissions"
 - Latest kin commit: pending (head: 66bc199e216a43c99b9543dcfc9d30d89a47a7ef05c13ad276fbfbacbe26df95)
 - Total entities tracked: 168
 
