@@ -487,6 +487,15 @@ pub fn run() {
         None
     };
 
+    // Log sync state on startup for debugging
+    let key_exists = key_path.is_some();
+    let has_sync_config = config.sync.is_some();
+    let has_sync_provider = sync_provider.is_some();
+    log::info!(
+        "Sync state on startup: key={}, config={}, provider={}",
+        key_exists, has_sync_config, has_sync_provider
+    );
+
     let app_state = Arc::new(AppState {
         config: Mutex::new(config),
         search_index: Mutex::new(search_index),
@@ -502,6 +511,8 @@ pub fn run() {
     .expect("Failed to create filesystem watcher");
 
     std::mem::forget(_watcher);
+
+    let persist_state = Arc::clone(&app_state);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -528,7 +539,9 @@ pub fn run() {
                         if let (Ok(size), Ok(position), Ok(is_maximized)) =
                             (win.inner_size(), win.outer_position(), win.is_maximized())
                         {
-                            if let Ok(mut cfg) = config::AppConfig::load() {
+                            // Use the in-memory config (which has the latest sync data)
+                            // instead of loading from disk, which could be stale
+                            if let Ok(mut cfg) = persist_state.config.lock() {
                                 cfg.window = config::WindowState {
                                     width: size.width as f64,
                                     height: size.height as f64,
