@@ -5,6 +5,7 @@ mod note;
 mod sync_git;
 mod sync_provider;
 mod watcher;
+mod util;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -523,6 +524,23 @@ fn update_files(state: Arc<AppState>, changed: &[std::path::PathBuf]) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let config = config::AppConfig::load().expect("Failed to load config");
+    // ---------------------------------------------------------------------
+    // Ensure external binaries are discoverable for the Tauri process.
+    // We set environment variables that the helper functions will read.
+    // If the binaries are on the normal PATH, `which` will locate them;
+    // otherwise we fall back to common locations.
+    // ---------------------------------------------------------------------
+    // Git
+    let git_path = std::env::var("NVAGE_GIT_PATH")
+        .or_else(|_| which::which("git").map(|p| p.to_string_lossy().into_owned()))
+        .unwrap_or_else(|_| "/usr/bin/git".to_string());
+    std::env::set_var("NVAGE_GIT_PATH", &git_path);
+    // age
+    let age_path = std::env::var("NVAGE_AGE_PATH")
+        .or_else(|_| which::which("age").map(|p| p.to_string_lossy().into_owned()))
+        .unwrap_or_else(|_| "/usr/bin/age".to_string());
+    std::env::set_var("NVAGE_AGE_PATH", &age_path);
+
     let notes_folder = config.notes_folder.clone();
     let window_state = config.window.clone();
 

@@ -14,6 +14,7 @@ Milestones 1, 2, and 3 are complete. v0.3.0 is a quality pass following a techni
 
 ### Recent work (2026-04-05)
 
+- **Sync binary detection fix**: Added utility helpers (`locate_git`, `locate_age`) that check environment variables and common paths before falling back to command name. Set `NVAGE_GIT_PATH` and `NVAGE_AGE_PATH` at app startup using the `which` crate to ensure the Tauri process can find external binaries even when it doesn't inherit the shell PATH. Also set `AGE_BINARY` for the `age` crate. This resolved sync failures in the dev server and RPM builds where `git`/`age` were not discoverable.
 - **Sync error fix**: Fixed double "failed" in sync error message ("Sync failed failed" → "Sync failed"). Added `reset_sync` IPC command and "Remove sync" button in the sync setup UI so users can start fresh.
 - **Flatpak CI**: Multiple attempts to get Flatpak building on GitHub Actions. The `flatpak/flatpak-github-actions/flatpak-builder@v6` action runs in an isolated Docker container that can't see pre-built binaries from the host runner. Current approach: build Tauri natively on the runner, then run `flatpak-builder` directly (not via the action) to package the pre-built binary. Still failing — the Docker container used by the action can't access the host filesystem. **This is the top priority for the next session.**
 - **Slash commands**: `/handoff` and `/catchup` created and confirmed working after OpenCode restart.

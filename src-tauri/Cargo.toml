@@ -29,3 +29,4 @@ anyhow = "1"
 dirs = "5"
 age = { version = "0.10", features = ["armor"] }
 rand = "0.8"
+which = "4"

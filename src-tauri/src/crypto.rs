@@ -74,6 +74,12 @@ pub fn save_secret_key(key_path: &Path, key_str: &str) -> Result<(), anyhow::Err
 /// Encrypt plaintext bytes using the given public key (bech32 recipient string).
 /// Returns the encrypted bytes in ASCII-armoured format.
 pub fn encrypt(public_key: &str, plaintext: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
+    // Ensure the `age` binary path is known to the `age` crate.
+    // The crate respects the `AGE_BINARY` environment variable.
+    if let Ok(age_path) = crate::util::locate_age() {
+        std::env::set_var("AGE_BINARY", age_path);
+    }
+
     let recipient: Recipient = public_key
         .parse()
         .map_err(|e: &'static str| anyhow::anyhow!("Invalid public key: {}", e))?;
@@ -92,6 +98,11 @@ pub fn encrypt(public_key: &str, plaintext: &[u8]) -> Result<Vec<u8>, anyhow::Er
 /// Decrypt ASCII-armoured ciphertext using the given secret key (Identity).
 /// Returns the decrypted plaintext bytes.
 pub fn decrypt(identity: &Identity, ciphertext: &[u8]) -> Result<Vec<u8>, anyhow::Error> {
+    // Ensure the `age` binary path is known to the `age` crate.
+    if let Ok(age_path) = crate::util::locate_age() {
+        std::env::set_var("AGE_BINARY", age_path);
+    }
+
     let decryptor = match Decryptor::new(ciphertext)? {
         Decryptor::Recipients(d) => d,
         _ => anyhow::bail!("unsupported encryption type (expected public-key encryption)"),

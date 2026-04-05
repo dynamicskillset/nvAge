@@ -8,24 +8,7 @@ use std::process::Command;
 /// Find the git binary. Tauri apps don't inherit shell PATH, so we
 /// search common locations before falling back to just "git".
 pub fn find_git() -> Result<String, anyhow::Error> {
-    let candidates = [
-        "/usr/bin/git",
-        "/usr/local/bin/git",
-        "/opt/homebrew/bin/git",
-        "/home/linuxbrew/.linuxbrew/bin/git",
-        "git",
-    ];
-
-    for path in &candidates {
-        let output = Command::new(path).arg("--version").output();
-        if let Ok(o) = output {
-            if o.status.success() {
-                return Ok(path.to_string());
-            }
-        }
-    }
-
-    anyhow::bail!("Git is not installed. Install Git to use sync.")
+    crate::util::locate_git()
 }
 
 /// Git-based sync provider that shells out to the `git` CLI.
