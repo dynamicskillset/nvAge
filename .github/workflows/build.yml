@@ -52,6 +52,17 @@ jobs:
           args: ${{ matrix.args }}
           tagName: ${{ github.ref_name }}
           releaseName: "nvAge ${{ github.ref_name }}"
-          releaseBody: "See the [CHANGELOG](https://github.com/dynamicskillset/nvAge/blob/main/CHANGELOG.md) for details."
+          releaseBody: |
+            See the [CHANGELOG](https://github.com/dynamicskillset/nvAge/blob/main/CHANGELOG.md) for details.
+
+            ### Downloads
+
+            | File | Platform |
+            |------|----------|
+            | `.dmg` | macOS (Apple Silicon) |
+            | `.AppImage` | Linux (any distro, no install) |
+            | `.rpm` | Fedora, RHEL, openSUSE |
+            | `.flatpak` | Fedora Silverblue, Flatpak-based distros |
+            | `.exe` | Windows |
           releaseDraft: false
           prerelease: false
