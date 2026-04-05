@@ -10,24 +10,55 @@ on:
 jobs:
   flatpak:
     name: "Flatpak (x86_64)"
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-48
-      options: --privileged
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
-        id: flatpak-build
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          bundle: nvAge.flatpak
-          manifest-path: com.doug.nvage.yml
-          cache-key: flatpak-builder-${{ github.sha }}
-          build-bundle: true
-          upload-artifact: true
+          node-version: 22
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libgtk-3-dev
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build Tauri app
+        run: npm run tauri build
+
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+
+      - name: Add Flathub remote
+        run: |
+          flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - name: Install GNOME runtime
+        run: |
+          flatpak install -y flathub org.gnome.Platform//48 org.gnome.Sdk//48
+
+      - name: Build Flatpak bundle
+        run: |
+          flatpak-builder --force-clean --repo=repo --install-deps-from=flathub flatpak-build com.doug.nvage.yml
+          flatpak build-bundle repo nvAge.flatpak com.doug.nvage
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nvAge-flatpak
+          path: nvAge.flatpak
 
       - name: Upload to release
-        if: github.event_name == 'push'
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: nvAge.flatpak
